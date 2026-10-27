@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Modules.Platform.Domain\Modules.Platform.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Common\Common.Application\Common.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Immediate.Handlers" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Modules.Platform.UnitTests" />
+  </ItemGroup>
+</Project>

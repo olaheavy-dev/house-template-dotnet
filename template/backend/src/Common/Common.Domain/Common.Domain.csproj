@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Expected failures are values (ErrorOr<T>), from the domain up to the endpoints. -->
+    <PackageReference Include="ErrorOr" />
+  </ItemGroup>
+</Project>

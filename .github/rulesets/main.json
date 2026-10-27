@@ -44,6 +44,12 @@
             "context": "Repository tests"
           },
           {
+            "context": "Template backend builds and passes its tests"
+          },
+          {
+            "context": "Generated project passes its checks"
+          },
+          {
             "context": "actionlint"
           },
           {
@@ -54,6 +60,9 @@
           },
           {
             "context": "CodeQL (actions)"
+          },
+          {
+            "context": "CodeQL (csharp)"
           },
           {
             "context": "CodeQL (python)"

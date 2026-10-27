@@ -1,0 +1,37 @@
+# Owned by house-template-dotnet. Included by the base Makefile; adds the backend's install and
+# checks to `make install`, `make check` and `make check-fast`. Its own targets end in -backend.
+
+BACKEND := backend/Backend.slnx
+ARTIFACTS ?= .artifacts
+# No telemetry from the .NET CLI or the test platform.
+export DOTNET_CLI_TELEMETRY_OPTOUT := 1
+export DOTNET_NOLOGO := 1
+export TESTINGPLATFORM_TELEMETRY_OPTOUT := 1
+
+INSTALLS += install-dotnet
+CHECKS += check-dotnet
+FAST_CHECKS += check-fast-dotnet
+
+.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend test-backend dev-backend lock-backend
+
+install-dotnet: ## Restore the backend's packages from its lock files (needs the SDK in global.json)
+	dotnet restore $(BACKEND) --locked-mode
+
+check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer warning as an error, and the tests with coverage
+	dotnet format $(BACKEND) --verify-no-changes --no-restore
+	dotnet build $(BACKEND) --configuration Release --no-restore
+	dotnet test --solution $(BACKEND) --configuration Release --no-build --coverlet --coverlet-output-format cobertura --results-directory $(ARTIFACTS)/test-results
+
+check-fast-dotnet: build-backend ## Backend: the build and its analyzers (the pre-push and stop-hook checks)
+
+build-backend: ## Build the backend (Release)
+	dotnet build $(BACKEND) --configuration Release
+
+test-backend: ## Run the backend's tests
+	dotnet test --solution $(BACKEND) --configuration Release
+
+dev-backend: ## Run the API with reload on http://localhost:5000
+	dotnet watch --project backend/src/Api/Api run --urls http://localhost:5000
+
+lock-backend: ## Update the lock files after changing backend/Directory.Packages.props or a project's packages
+	dotnet restore $(BACKEND) --force-evaluate

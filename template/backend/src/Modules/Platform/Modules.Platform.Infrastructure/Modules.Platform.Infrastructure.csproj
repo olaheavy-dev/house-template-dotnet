@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Modules.Platform.Application\Modules.Platform.Application.csproj" />
+    <ProjectReference Include="..\Modules.Platform.Presentation\Modules.Platform.Presentation.csproj" />
+    <ProjectReference Include="..\Modules.Platform.PublicApi\Modules.Platform.PublicApi.csproj" />
+    <ProjectReference Include="..\Modules.Platform.IntegrationEvents\Modules.Platform.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\Common\Common.Infrastructure\Common.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

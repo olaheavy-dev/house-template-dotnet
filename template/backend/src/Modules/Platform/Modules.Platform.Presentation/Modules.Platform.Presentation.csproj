@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Modules.Platform.Application\Modules.Platform.Application.csproj" />
+    <ProjectReference Include="..\..\..\Common\Common.Presentation\Common.Presentation.csproj" />
+    <PackageReference Include="Immediate.Handlers" />
+  </ItemGroup>
+</Project>

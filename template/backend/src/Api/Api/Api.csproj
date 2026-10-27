@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\..\Common\Common.Infrastructure\Common.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Common\Common.Presentation\Common.Presentation.csproj" />
+    <ProjectReference Include="..\..\Modules\Platform\Modules.Platform.Infrastructure\Modules.Platform.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The integration and acceptance tests start this host through WebApplicationFactory<Program>. -->
+    <InternalsVisibleTo Include="IntegrationTests" />
+    <InternalsVisibleTo Include="AcceptanceTests" />
+  </ItemGroup>
+</Project>

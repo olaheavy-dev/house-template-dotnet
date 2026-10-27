@@ -1,5 +1,5 @@
-# CodeQL for this repository: the workflows themselves and the template tests. csharp joins the
-# matrix when the layer ships C# (template/backend), scanned without a build (build-mode: none).
+# CodeQL for this repository: the workflows, the template tests and the C# backend the layer
+# generates (template/backend is plain C#, scanned without a build: build-mode none).
 name: CodeQL
 
 on:
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [actions, python]
+        language: [actions, csharp, python]
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
