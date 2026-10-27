@@ -12,6 +12,8 @@
     <PackageReference Include="NUnit3TestAdapter" />
     <PackageReference Include="coverlet.MTP" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
     <ProjectReference Include="..\..\src\Api\Api\Api.csproj" />
   </ItemGroup>
   <ItemGroup>
