@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Code that breaks every architecture rule on purpose: RuleSelfTests prove each rule can fail.
+       It is never referenced by the app; analyzers are off because the point is to be wrong. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AnalysisMode>None</AnalysisMode>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CS0169;CS0649;IDE0051;IDE0052</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Immediate.Handlers" />
+  </ItemGroup>
+</Project>

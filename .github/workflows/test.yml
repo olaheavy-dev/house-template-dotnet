@@ -74,6 +74,10 @@ jobs:
       - name: Run the tests
         run: dotnet test --solution Backend.slnx --configuration Release --no-build
 
+      # ArchUnitNET reads the compiled IL, and Release optimisations can hide a dependency.
+      - name: Run the architecture tests in Debug
+        run: dotnet test --project tests/ArchitectureTests --configuration Debug
+
   generated-project:
     name: Generated project passes its checks
     runs-on: ubuntu-24.04
@@ -118,3 +122,8 @@ jobs:
       - name: The checks leave the tree clean
         working-directory: ${{ runner.temp }}/demo
         run: git status --porcelain && test -z "$(git status --porcelain)"
+
+      # The module template is only compiled when a project uses it, so CI adds one and checks it.
+      - name: A module added with make module passes the checks
+        working-directory: ${{ runner.temp }}/demo
+        run: make module NAME=Billing && make check-dotnet

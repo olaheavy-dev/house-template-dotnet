@@ -22,13 +22,14 @@ It asks one question, the API's display name (default: the project name plus "AP
 | `backend/src/Common/` | The shared kernel: ErrorOr for expected failures, Immediate.Handlers (source-generated handlers, no MediatR) with logging and FluentValidation pipeline steps, and RFC 9457 problem responses with a stable `code` |
 | `backend/src/Modules/Platform/` | The example module, in the six projects every module has (Domain, Application, Infrastructure, Presentation, IntegrationEvents, PublicApi), with `GET /v1/platform/ping` |
 | `backend/src/Api/Api` | The host: modules register themselves; Carter maps their endpoints |
-| `backend/tests/` | NUnit unit tests, Reqnroll acceptance tests (feature files driving the API in memory) and integration tests |
-| `mk/dotnet.mk` | `install-dotnet`, `check-dotnet`, `check-fast-dotnet`, `build-backend`, `test-backend`, `dev-backend` and `lock-backend`, joined to the base targets |
+| `backend/tests/` | NUnit unit tests, Reqnroll acceptance tests (feature files driving the API in memory), integration tests, and architecture tests (ArchUnitNET): layer direction, module isolation, internal handlers, no machine clock, integration events that set every property, and the module layout. Each rule has a planted violation in `ArchitectureTests.Fixtures` its self-test must find; they also run in Debug, because Release optimisations can hide a dependency |
+| `backend/templates/module`, `.claude/skills/add-module` | `make module NAME=Billing`: a new module in its six projects with an example query, endpoint and test, added to the solution and registered in `Program.cs` (a `dotnet new` template, run from a project-local store) |
+| `mk/dotnet.mk` | `install-dotnet`, `check-dotnet`, `check-fast-dotnet`, `build-backend`, `test-backend`, `dev-backend`, `lock-backend` and `module`, joined to the base targets |
 | `.claude/rules/dotnet.md`, `docs/references/dotnet.md` | Rules for coding agents in `backend/`, and the official docs for each pinned version (base's `.mcp.json` adds the Microsoft Learn MCP server) |
 
 Project and namespace names are the same in every generated app (`Common.Domain`, `Modules.Platform.Application`), so the template's C# is plain code: it builds and tests in place, and Dependabot and CodeQL work on it directly.
 
-Still to come (see the plan): architecture tests, OpenAPI, health checks, Keycloak, hardening, OpenTelemetry, EF Core and the outbox, the image and Compose.
+Still to come (see the plan): InspectCode, dependency submission and licence checks, OpenAPI, health checks, Keycloak, hardening, OpenTelemetry, EF Core and the outbox, the image and Compose.
 
 ## Develop the template
 
