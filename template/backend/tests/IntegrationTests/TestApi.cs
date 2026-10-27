@@ -1,0 +1,28 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace IntegrationTests;
+
+/// <summary>
+/// The API in memory, with <paramref name="configure"/> changing its services after the app's own.
+/// WebApplicationFactory runs it as Development unless <paramref name="environment"/> says otherwise.
+/// </summary>
+internal sealed class TestApi(Action<IServiceCollection> configure, string? environment = null) : WebApplicationFactory<Program>
+{
+    public TestApi(string environment)
+        : this(_ => { }, environment)
+    {
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        if (environment is not null)
+        {
+            builder.UseEnvironment(environment);
+        }
+
+        builder.ConfigureTestServices(configure);
+    }
+}

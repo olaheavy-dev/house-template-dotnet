@@ -28,19 +28,26 @@ dotnet jb inspectcode $(BACKEND) --output=$(ARTIFACTS)/inspectcode.sarif --forma
 @echo "InspectCode: no issues."
 endef
 
+# The OpenAPI document the build writes and the Next.js layer reads. make check builds into
+# $(ARTIFACTS) instead and fails if the committed one differs, so a check never rewrites the tree.
+OPENAPI := backend/openapi/v1.json
+OPENAPI_BUILT := $(ARTIFACTS)/openapi/v1.json
+
 INSTALLS += install-dotnet
 CHECKS += check-dotnet
 FAST_CHECKS += check-fast-dotnet
 
-.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
+.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
 
 install-dotnet: ## Restore the backend's tools and packages from their lock files (needs the SDK in global.json)
 	dotnet tool restore
 	dotnet restore $(BACKEND) --locked-mode
 
-check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer warning as an error, licences, InspectCode at zero issues, and the tests with coverage
+check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer warning as an error, the OpenAPI document up to date, licences, InspectCode at zero issues, and the tests with coverage
 	dotnet format $(BACKEND) --verify-no-changes --no-restore
-	dotnet build $(BACKEND) --configuration Release --no-restore
+	dotnet build $(BACKEND) --configuration Release --no-restore -p:OpenApiDocumentsDirectory=$(abspath $(dir $(OPENAPI_BUILT)))
+	@cmp -s $(OPENAPI) $(OPENAPI_BUILT) || { echo "$(OPENAPI) is out of date: run make openapi-backend and commit it."; \
+		diff -u $(OPENAPI) $(OPENAPI_BUILT) | head -40; exit 1; }
 	$(LICENSES)
 	$(INSPECT)
 	dotnet test --solution $(BACKEND) --configuration Release --no-build --coverlet --coverlet-output-format cobertura --results-directory $(ARTIFACTS)/test-results
@@ -51,6 +58,9 @@ check-fast-dotnet: build-backend ## Backend: the build and its analyzers (the pr
 
 build-backend: ## Build the backend (Release)
 	dotnet build $(BACKEND) --configuration Release
+
+openapi-backend: ## Write backend/openapi/v1.json from the code (any build does; commit it)
+	dotnet build backend/src/Api/Api --configuration Release
 
 test-backend: ## Run the backend's tests
 	dotnet test --solution $(BACKEND) --configuration Release
@@ -79,7 +89,9 @@ module: ## Add a module in its six projects with an example query and test: make
 		$(PROGRAM) > $(PROGRAM).new && mv $(PROGRAM).new $(PROGRAM)
 	dotnet restore $(BACKEND) --force-evaluate
 	dotnet format $(BACKEND) --include $(PROGRAM) --no-restore
-	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, and its registration in Program.cs. Run make check."
+	# The module's example endpoint changes the OpenAPI document.
+	dotnet build backend/src/Api/Api --configuration Release --no-restore
+	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, its registration in Program.cs and its endpoint in $(OPENAPI). Run make check."
 
 doctor-backend: ## Check this machine has what the backend needs: the SDK global.json names, Docker for integration tests
 	@command -v dotnet >/dev/null || { echo "dotnet not found: install the .NET SDK named in global.json"; exit 1; }

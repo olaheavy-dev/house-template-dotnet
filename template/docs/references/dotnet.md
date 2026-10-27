@@ -7,6 +7,10 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | .NET SDK and runtime | SDK 10.0.403, runtime 10.0.14 (`global.json`) | https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10/overview |
 | ASP.NET Core minimal APIs | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis |
 | Problem Details (RFC 9457) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/error-handling-api |
+| Health checks | 10.0 | https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks |
+| OpenAPI, generated at build time | Microsoft.AspNetCore.OpenApi and Microsoft.Extensions.ApiDescription.Server 10.0.14 | https://learn.microsoft.com/aspnet/core/fundamentals/openapi/aspnetcore-openapi |
+| JetBrains.Annotations (`[UsedImplicitly]` for what a framework uses) | 2026.2.0 | https://www.jetbrains.com/help/resharper/Reference__Code_Annotation_Attributes.html |
+| Scalar (API reference, development only) | Scalar.AspNetCore 2.18.3 | https://scalar.com/products/api-references/integrations/aspnetcore/integration |
 | Carter | 10.0.0 | https://github.com/CarterCommunity/Carter |
 | ErrorOr | 2.1.1 | https://github.com/amantinband/error-or |
 | Immediate.Handlers | 4.2.0 | https://github.com/ImmediatePlatform/Immediate.Handlers |
@@ -38,6 +42,8 @@ Checked 27 Oct 2026; review this table whenever Dependabot proposes a major upgr
 | TngTech.ArchUnitNET | 10.6 million | TNG | 0.13.5, Oct 2026 | Apache-2.0 | Tests only; the rules are plain C# over its model |
 | Carter | 5.1 million | 54 contributors | 10.0.0, **Nov 2025** | MIT | Each `ICarterModule` becomes a `MapGroup` extension method |
 | Immediate.Handlers | 0.29 million | 9 contributors | 4.2.0, Sep 2026 | MIT | Mediator 3.x, or a small in-house dispatcher; handlers touch the package only through `[Handler]` and `IHandler<,>` |
+| Scalar.AspNetCore | 56 million | Scalar (company), 260+ contributors | 2.18.3, Oct 2026 | MIT | Development only; the document is the build's file, so any viewer (or none) works |
+| JetBrains.Annotations | 515 million | JetBrains | 2026.2.0, Jun 2026 | MIT | Compile-time only (`PrivateAssets=all`); delete the attributes |
 | coverlet.MTP | — | coverlet | 10.1.0, Sep 2026 | MIT | Tests only |
 | nuget-license (tool) | 2.2 million | sensslen | 4.0.18, Sep 2026 | Apache-2.0 | Tool only |
 | JetBrains InspectCode (tool) | 15.8 million | JetBrains | 2026.2.3.1 | Free JetBrains licence (not open source) | Tool only; drop the step |

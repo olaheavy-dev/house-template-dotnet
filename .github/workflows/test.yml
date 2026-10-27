@@ -70,8 +70,16 @@ jobs:
       - name: Check formatting
         run: dotnet format Backend.slnx --verify-no-changes --no-restore
 
+      # The build writes openapi/v1.json. With the title set to the placeholder copier fills in, it
+      # must match the committed openapi/v1.json.jinja exactly, as a generated project's make check
+      # requires of its own document.
       - name: Build with every analyzer warning as an error
+        env:
+          Api__Title: "{{ api_title_in_json }}"
         run: dotnet build Backend.slnx --configuration Release --no-restore
+
+      - name: The committed OpenAPI document matches the code
+        run: diff -u openapi/v1.json.jinja openapi/v1.json
 
       - name: Check every package's licence
         run: >-

@@ -13,3 +13,5 @@ StrykerOutput/
 .env.*
 !.env.example
 appsettings.*.local.json
+# The in-place build of the template writes it; the committed one is v1.json.jinja.
+template/backend/openapi/v1.json
