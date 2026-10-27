@@ -18,7 +18,7 @@ TEMPLATE = ROOT / "template"
 
 BASE_ANSWERS = {
     "_src_path": "gh:olaheavy-dev/house-template-base",
-    "_commit": "v0.5.0",
+    "_commit": "v0.6.0",
     "project_name": "Demo App",
     "project_slug": "demo-app",
     "description": "A demo of the .NET layer.",

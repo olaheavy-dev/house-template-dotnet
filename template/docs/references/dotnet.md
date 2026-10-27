@@ -14,6 +14,14 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | HTTP logging (the access log) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/http-logging/ |
 | JSON console logs | 10.0 | https://learn.microsoft.com/dotnet/core/extensions/console-log-formatter |
 | HTTP resilience (`AddStandardResilienceHandler`) | Microsoft.Extensions.Http.Resilience 10.11.0 | https://learn.microsoft.com/dotnet/core/resilience/http-resilience |
+| Rate limiting | 10.0 | https://learn.microsoft.com/aspnet/core/performance/rate-limit |
+| Request timeouts | 10.0 | https://learn.microsoft.com/aspnet/core/performance/timeouts |
+| Kestrel limits (request body size) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/servers/kestrel/options |
+| CORS | 10.0 | https://learn.microsoft.com/aspnet/core/security/cors |
+| Host filtering (`AllowedHosts`) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/servers/kestrel/host-filtering |
+| Server-Sent Events (`TypedResults.ServerSentEvents`) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis/responses#server-sent-events-sse |
+| Options validation | 10.0 | https://learn.microsoft.com/dotnet/core/extensions/options#options-validation |
+| Security headers | NetEscapades.AspNetCore.SecurityHeaders 1.3.1 | https://github.com/andrewlock/NetEscapades.AspNetCore.SecurityHeaders |
 | JetBrains.Annotations (`[UsedImplicitly]` for what a framework uses) | 2026.2.0 | https://www.jetbrains.com/help/resharper/Reference__Code_Annotation_Attributes.html |
 | Scalar (API reference, development only) | Scalar.AspNetCore 2.18.3 | https://scalar.com/products/api-references/integrations/aspnetcore/integration |
 | Carter | 10.0.0 | https://github.com/CarterCommunity/Carter |
@@ -50,6 +58,8 @@ Checked 27 Oct 2026; review this table whenever Dependabot proposes a major upgr
 | OpenTelemetry.* | 508 million | OpenTelemetry (CNCF) | 1.20.1, Oct 2026 | Apache-2.0 | The standard; exporting is OTLP, so any backend works |
 | Microsoft.Extensions.Http.Resilience | 180 million | Microsoft | 10.11.0, Oct 2026 | MIT | Built on Polly; or Polly directly |
 | Microsoft.Extensions.Diagnostics.Testing, OpenTelemetry.Exporter.InMemory | — | Microsoft, OpenTelemetry | 10.11.0, 1.20.1 | MIT, Apache-2.0 | Tests only |
+| NetEscapades.AspNetCore.SecurityHeaders | 20 million | Andrew Lock | 1.3.1, **Dec 2025** (repository active, Jul 2026) | MIT | The API preset is a dozen headers set in `OnStarting`: a small middleware |
+| Microsoft.Extensions.TimeProvider.Testing | — | Microsoft | 10.11.0, Oct 2026 | MIT | Tests only |
 | Scalar.AspNetCore | 56 million | Scalar (company), 260+ contributors | 2.18.3, Oct 2026 | MIT | Development only; the document is the build's file, so any viewer (or none) works |
 | JetBrains.Annotations | 515 million | JetBrains | 2026.2.0, Jun 2026 | MIT | Compile-time only (`PrivateAssets=all`); delete the attributes |
 | coverlet.MTP | — | coverlet | 10.1.0, Sep 2026 | MIT | Tests only |

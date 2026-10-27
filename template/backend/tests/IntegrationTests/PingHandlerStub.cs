@@ -12,6 +12,12 @@ internal sealed class PingHandlerStub(Func<ErrorOr<PingResponse>> answer) : IHan
         ValueTask.FromResult(answer());
 
     /// <summary>The API with GET /v1/platform/ping answering whatever <paramref name="answer"/> returns or throws.</summary>
-    public static TestApi Api(Func<ErrorOr<PingResponse>> answer) =>
-        new(services => services.AddSingleton<IHandler<GetPingQuery, ErrorOr<PingResponse>>>(new PingHandlerStub(answer)));
+    public static TestApi Api(Func<ErrorOr<PingResponse>> answer) => new(services => services.AddPingHandlerStub(answer));
+}
+
+internal static class PingHandlerStubRegistration
+{
+    /// <summary>Replaces the ping handler with one answering whatever <paramref name="answer"/> returns or throws.</summary>
+    public static void AddPingHandlerStub(this IServiceCollection services, Func<ErrorOr<PingResponse>> answer) =>
+        services.AddSingleton<IHandler<GetPingQuery, ErrorOr<PingResponse>>>(new PingHandlerStub(answer));
 }

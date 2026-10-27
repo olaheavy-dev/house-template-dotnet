@@ -12,6 +12,9 @@ namespace ServiceDefaults;
 
 public static class ServiceDefaultsExtensions
 {
+    /// <summary>The header that carries each request's id, both ways.</summary>
+    public const string RequestIdHeader = RequestIds.Header;
+
     // Probes hit these every few seconds; their spans and access lines would drown the real traffic.
     internal const string HealthPaths = "/health";
 

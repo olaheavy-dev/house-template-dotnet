@@ -55,6 +55,22 @@ def test_the_access_log_is_on_in_the_settings(render):
     assert levels["Microsoft.AspNetCore.HttpLogging.HttpLoggingMiddleware"] == "Information"
 
 
+def test_the_env_example_names_only_settings_the_api_has(render):
+    # A documented setting that no longer exists would silently do nothing.
+    example = (render() / "backend/.env.example").read_text()
+    options = (BACKEND / "src/Api/Api/ApiOptions.cs").read_text()
+    names = set(re.findall(r"Api__(\w+?)(?:__\d+)?=", example))
+    assert names == {"CorsOrigins", "MaxRequestBodyBytes", "RequestTimeoutSeconds", "RateLimitPerMinute"}
+    for name in names:
+        assert re.search(rf"public \S+ {name} {{ get; init; }}", options), name
+
+
+def test_make_dev_backend_runs_in_development_with_the_env_file(render):
+    dev = make_dry_run(render(), "dev-backend")
+    assert "export ASPNETCORE_ENVIRONMENT=Development" in dev
+    assert ". ./backend/.env" in dev
+
+
 def test_the_api_title_reaches_the_hosts_settings(render):
     settings = json.loads((render(api_title="Course Lens API") / "backend/src/Api/Api/appsettings.json").read_text())
     assert settings["Api"]["Title"] == "Course Lens API"

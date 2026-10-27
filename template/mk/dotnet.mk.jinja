@@ -65,7 +65,9 @@ openapi-backend: ## Write backend/openapi/v1.json from the code (any build does;
 test-backend: ## Run the backend's tests
 	dotnet test --solution $(BACKEND) --configuration Release
 
-dev-backend: ## Run the API with reload on http://localhost:5000
+dev-backend: ## Run the API with reload on http://localhost:5000, in Development, with backend/.env's settings
+	@export ASPNETCORE_ENVIRONMENT=Development; \
+	if [ -f backend/.env ]; then set -a; . ./backend/.env; set +a; fi; \
 	dotnet watch --project backend/src/Api/Api run --urls http://localhost:5000
 
 lock-backend: ## Update the lock files after changing backend/Directory.Packages.props or a project's packages
