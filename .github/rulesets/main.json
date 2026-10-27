@@ -82,13 +82,13 @@
         "code_scanning_tools": [
           {
             "tool": "CodeQL",
-            "alerts_threshold": "errors",
-            "security_alerts_threshold": "high_or_higher"
+            "alerts_threshold": "all",
+            "security_alerts_threshold": "all"
           },
           {
             "tool": "zizmor",
-            "alerts_threshold": "errors_and_warnings",
-            "security_alerts_threshold": "medium_or_higher"
+            "alerts_threshold": "all",
+            "security_alerts_threshold": "all"
           }
         ]
       }
