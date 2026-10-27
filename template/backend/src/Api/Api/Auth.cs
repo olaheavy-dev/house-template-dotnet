@@ -76,11 +76,19 @@ internal static partial class Auth
 
     /// <summary>
     /// Keycloak puts a client's roles in resource_access.{client}.roles; the API client's roles are
-    /// the permissions. Another issuer carries them elsewhere (Auth0: a permissions claim): change
-    /// this to read it. A role named * is ignored: only the development stand-in holds every permission.
+    /// the permissions, and nothing else is: a permission claim in the token itself is dropped. Another
+    /// issuer carries them elsewhere (Auth0: a permissions claim): change this to read it. A role
+    /// named * is ignored: only the development stand-in holds every permission.
     /// </summary>
     internal static void AddPermissions(ClaimsIdentity identity, string audience)
     {
+        // Only the API client's roles grant permissions: a permission claim the token carries itself
+        // (a misconfigured mapper, a token meant for something else) is dropped first.
+        foreach (var claimed in identity.FindAll(SignedInUser.PermissionClaim).ToList())
+        {
+            identity.RemoveClaim(claimed);
+        }
+
         if (identity.FindFirst("resource_access")?.Value is not { } resourceAccess)
         {
             return;

@@ -14,6 +14,7 @@ public sealed class KeycloakTests
 {
     // The image backend/compose.yaml will run, pinned by digest.
     internal const string Image = "quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b";
+    internal const string ForgingClient = "forges-a-permission";
     private static readonly Uri Me = new("/v1/me", UriKind.Relative);
 
     private readonly HttpClient _tokens = new();
@@ -29,6 +30,7 @@ public sealed class KeycloakTests
             .Build();
         await _keycloak.StartAsync();
         _issuer = new Uri(new Uri(_keycloak.GetBaseAddress()), "realms/app").ToString();
+        await AddClientThatForgesAPermissionClaim();
         _api = new TestApi(_ => { }, "Production", new Dictionary<string, string>
         {
             ["Auth:Issuer"] = _issuer,
@@ -61,6 +63,20 @@ public sealed class KeycloakTests
     public async Task A_user_without_the_role_gets_a_403()
     {
         using var client = await ClientSignedInAs("visitor", "visitor");
+
+        using var response = await client.GetAsync(Me);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task A_permission_claim_the_token_carries_itself_grants_nothing()
+    {
+        // Codex review on PR 9: a correctly signed token whose issuer adds a top-level permission
+        // claim (a misconfigured mapper, another client) must not grant it; only the API client's roles do.
+        using var client = _api.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", await TokenFor("visitor", "visitor", ForgingClient));
 
         using var response = await client.GetAsync(Me);
 
@@ -107,6 +123,54 @@ public sealed class KeycloakTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
     }
 
+    // A client whose tokens carry the API audience and a hardcoded top-level permission claim.
+    private async Task AddClientThatForgesAPermissionClaim()
+    {
+        using var adminForm = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "password",
+            ["client_id"] = "admin-cli",
+            ["username"] = KeycloakBuilder.DefaultUsername,
+            ["password"] = KeycloakBuilder.DefaultPassword,
+        });
+        using var adminTokenResponse = await _tokens.PostAsync(
+            new Uri(new Uri(_keycloak.GetBaseAddress()), "realms/master/protocol/openid-connect/token"), adminForm);
+        using var adminToken = JsonDocument.Parse(await adminTokenResponse.Content.ReadAsStringAsync());
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(new Uri(_keycloak.GetBaseAddress()), "admin/realms/app/clients"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken.RootElement.GetProperty("access_token").GetString());
+        request.Content = JsonContent(new
+        {
+            clientId = ForgingClient,
+            publicClient = true,
+            directAccessGrantsEnabled = true,
+            standardFlowEnabled = false,
+            protocolMappers = new[]
+            {
+                Mapper("api audience", "oidc-audience-mapper", new Dictionary<string, string>
+                {
+                    ["included.client.audience"] = "api",
+                    ["access.token.claim"] = "true",
+                }),
+                Mapper("forged permission", "oidc-hardcoded-claim-mapper", new Dictionary<string, string>
+                {
+                    ["claim.name"] = "permission",
+                    ["claim.value"] = "me.read",
+                    ["jsonType.label"] = "String",
+                    ["access.token.claim"] = "true",
+                }),
+            },
+        });
+
+        using var response = await _tokens.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
+    }
+
+    private static object Mapper(string name, string kind, Dictionary<string, string> config) =>
+        new { name, protocol = "openid-connect", protocolMapper = kind, config };
+
+    private static StringContent JsonContent(object value) =>
+        new(JsonSerializer.Serialize(value), System.Text.Encoding.UTF8, new MediaTypeHeaderValue("application/json"));
+
     private async Task<HttpClient> ClientSignedInAs(string username, string password)
     {
         var client = _api.CreateClient();
@@ -115,12 +179,12 @@ public sealed class KeycloakTests
     }
 
     // The realm's local-cli client allows the password grant, for curl and these tests only.
-    private async Task<string> TokenFor(string username, string password)
+    private async Task<string> TokenFor(string username, string password, string clientId = "local-cli")
     {
         using var form = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "password",
-            ["client_id"] = "local-cli",
+            ["client_id"] = clientId,
             ["username"] = username,
             ["password"] = password,
         });

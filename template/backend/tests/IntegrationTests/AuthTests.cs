@@ -140,4 +140,31 @@ public sealed class AuthTests
 
         Assert.That(identity.FindAll("permission").Select(claim => claim.Value), Is.EqualTo(expected));
     }
+
+    [Test]
+    public void A_permission_claim_in_the_token_itself_counts_for_nothing()
+    {
+        // Codex review on PR 9: a token's own top-level permission claim ("*", say) would otherwise
+        // pass every RequirePermission check, in production too.
+        var identity = new ClaimsIdentity(
+        [
+            new Claim("resource_access", """{"api":{"roles":["me.read"]}}"""),
+            new Claim("permission", "*"),
+            new Claim("permission", "files.delete"),
+        ], "Bearer");
+
+        Auth.AddPermissions(identity, "api");
+
+        Assert.That(identity.FindAll("permission").Select(claim => claim.Value), Is.EqualTo(new[] { "me.read" }));
+    }
+
+    [Test]
+    public void A_permission_claim_without_any_client_roles_counts_for_nothing()
+    {
+        var identity = new ClaimsIdentity([new Claim("permission", "*")], "Bearer");
+
+        Auth.AddPermissions(identity, "api");
+
+        Assert.That(identity.FindAll("permission"), Is.Empty);
+    }
 }
