@@ -2,10 +2,22 @@
   "Api": {
     "Title": {{ api_title | tojson }}
   },
+  "OpenTelemetry": {
+    "ServiceName": {{ (_external_data.base.project_slug ~ '-api') | tojson }}
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.HttpLogging.HttpLoggingMiddleware": "Information"
+    },
+    "Console": {
+      "FormatterName": "json",
+      "FormatterOptions": {
+        "IncludeScopes": true,
+        "UseUtcTimestamp": true,
+        "TimestampFormat": "yyyy-MM-ddTHH:mm:ss.fffZ"
+      }
     }
   },
   "AllowedHosts": "*"

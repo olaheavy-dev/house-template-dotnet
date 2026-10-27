@@ -34,6 +34,27 @@ def test_layer_renders_the_backend_and_its_answers(render):
     assert answers["api_title"] == "Demo App API"
 
 
+def test_logs_are_json_lines_outside_development(render):
+    # Production log collectors parse one JSON object per line; developers read the simple format.
+    host = render() / "backend/src/Api/Api"
+    console = json.loads((host / "appsettings.json").read_text())["Logging"]["Console"]
+    assert console["FormatterName"] == "json"
+    assert console["FormatterOptions"]["IncludeScopes"] is True
+    development = json.loads((host / "appsettings.Development.json").read_text())["Logging"]["Console"]
+    assert development["FormatterName"] == "simple"
+
+
+def test_telemetry_names_the_service_after_the_project(render):
+    # Codex review on PR 7: without a name, every app exports as unknown_service:dotnet.
+    settings = json.loads((render() / "backend/src/Api/Api/appsettings.json").read_text())
+    assert settings["OpenTelemetry"]["ServiceName"] == "demo-app-api"
+
+
+def test_the_access_log_is_on_in_the_settings(render):
+    levels = json.loads((render() / "backend/src/Api/Api/appsettings.json").read_text())["Logging"]["LogLevel"]
+    assert levels["Microsoft.AspNetCore.HttpLogging.HttpLoggingMiddleware"] == "Information"
+
+
 def test_the_api_title_reaches_the_hosts_settings(render):
     settings = json.loads((render(api_title="Course Lens API") / "backend/src/Api/Api/appsettings.json").read_text())
     assert settings["Api"]["Title"] == "Course Lens API"

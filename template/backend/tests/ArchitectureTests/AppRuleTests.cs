@@ -10,7 +10,7 @@ public sealed class AppRuleTests
     {
         var assemblies = Directory.GetFiles(AppContext.BaseDirectory, "*.dll")
             .Where(path => Path.GetFileName(path) is var name
-                && (name == "Api.dll" || name.StartsWith("Common.", StringComparison.Ordinal)
+                && (name is "Api.dll" or "ServiceDefaults.dll" || name.StartsWith("Common.", StringComparison.Ordinal)
                     || name.StartsWith("Modules.", StringComparison.Ordinal)))
             .Select(Assembly.LoadFrom)
             .ToList();
@@ -30,5 +30,5 @@ public sealed class AppRuleTests
     public void The_app_is_checked() =>
         Assert.That(
             App.Value.Assemblies.Select(assembly => assembly.GetName().Name),
-            Does.Contain("Api").And.Contain("Common.Domain").And.Contain("Modules.Platform.Application"));
+            Does.Contain("Api").And.Contain("ServiceDefaults").And.Contain("Common.Domain").And.Contain("Modules.Platform.Application"));
 }

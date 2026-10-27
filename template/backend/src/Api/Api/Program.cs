@@ -4,9 +4,11 @@ using Common.Infrastructure;
 using Common.Presentation;
 using Modules.Platform.Infrastructure;
 using Scalar.AspNetCore;
+using ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
 builder.Services.AddCommon();
 builder.Services.AddApiProblemDetails();
 builder.Services.AddApiOpenApi(builder.Configuration);
@@ -24,6 +26,7 @@ builder.Services.AddCarter(new DependencyContextAssemblyCatalog(
 
 var app = builder.Build();
 
+app.UseServiceDefaults();
 // An unhandled exception, and a status code with no body, become problem details.
 app.UseExceptionHandler();
 app.UseStatusCodePages();
