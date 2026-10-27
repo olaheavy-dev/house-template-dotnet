@@ -8,18 +8,41 @@ export DOTNET_CLI_TELEMETRY_OPTOUT := 1
 export DOTNET_NOLOGO := 1
 export TESTINGPLATFORM_TELEMETRY_OPTOUT := 1
 
+# Fails on any package (direct or transitive) whose licence isn't in backend/licenses/allowed.json.
+define LICENSES
+dotnet nuget-license --input $(BACKEND) --include-transitive --allowed-license-types backend/licenses/allowed.json \
+	--override-package-information backend/licenses/overrides.json --error-only
+endef
+
+# JetBrains InspectCode on the built solution; any finding at warning or above fails. The fixtures
+# break the architecture rules on purpose, so they're left out. Exceptions live in backend/.editorconfig.
+define INSPECT
+@mkdir -p $(ARTIFACTS)
+@rm -f $(ARTIFACTS)/inspectcode.sarif
+dotnet jb inspectcode $(BACKEND) --output=$(ARTIFACTS)/inspectcode.sarif --format=Sarif --severity=WARNING \
+	--no-build --properties:Configuration=Release --verbosity=WARN --exclude='**/ArchitectureTests.Fixtures/**'
+@test -s $(ARTIFACTS)/inspectcode.sarif || { echo "InspectCode produced no report"; exit 1; }
+@if grep -q '"ruleId"' $(ARTIFACTS)/inspectcode.sarif; then \
+	echo "InspectCode found issues ($(ARTIFACTS)/inspectcode.sarif):"; \
+	grep -E '"(ruleId|uri|startLine)"' $(ARTIFACTS)/inspectcode.sarif | head -60; exit 1; fi
+@echo "InspectCode: no issues."
+endef
+
 INSTALLS += install-dotnet
 CHECKS += check-dotnet
 FAST_CHECKS += check-fast-dotnet
 
-.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend test-backend dev-backend lock-backend module
+.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
 
-install-dotnet: ## Restore the backend's packages from its lock files (needs the SDK in global.json)
+install-dotnet: ## Restore the backend's tools and packages from their lock files (needs the SDK in global.json)
+	dotnet tool restore
 	dotnet restore $(BACKEND) --locked-mode
 
-check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer warning as an error, and the tests with coverage
+check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer warning as an error, licences, InspectCode at zero issues, and the tests with coverage
 	dotnet format $(BACKEND) --verify-no-changes --no-restore
 	dotnet build $(BACKEND) --configuration Release --no-restore
+	$(LICENSES)
+	$(INSPECT)
 	dotnet test --solution $(BACKEND) --configuration Release --no-build --coverlet --coverlet-output-format cobertura --results-directory $(ARTIFACTS)/test-results
 	# Again in Debug: ArchUnitNET reads the compiled IL, and Release optimisations can hide a dependency.
 	dotnet test --project backend/tests/ArchitectureTests --configuration Debug
@@ -57,3 +80,20 @@ module: ## Add a module in its six projects with an example query and test: make
 	dotnet restore $(BACKEND) --force-evaluate
 	dotnet format $(BACKEND) --include $(PROGRAM) --no-restore
 	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, and its registration in Program.cs. Run make check."
+
+doctor-backend: ## Check this machine has what the backend needs: the SDK global.json names, Docker for integration tests
+	@command -v dotnet >/dev/null || { echo "dotnet not found: install the .NET SDK named in global.json"; exit 1; }
+	@dotnet --version >/dev/null 2>&1 || { echo "The .NET SDK in global.json isn't installed:"; dotnet --version; exit 1; }
+	@echo ".NET SDK $$(dotnet --version) (global.json asks for $$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' global.json | head -1) or a later patch)"
+	@command -v docker >/dev/null && docker info >/dev/null 2>&1 && echo "Docker: running" \
+		|| echo "Docker: not running (the integration tests and make up need it)"
+	@dotnet tool restore >/dev/null && echo "Tools: restored (.config/dotnet-tools.json)"
+
+package-health: ## Flag pinned packages with no release on nuget.org for a year (needs network)
+	python3 tools/check_package_health.py
+
+licenses-backend: install-dotnet ## Fail on any package (direct or transitive) whose licence isn't allowed
+	$(LICENSES)
+
+inspect-backend: build-backend ## Run JetBrains InspectCode on a Release build and fail on any issue
+	$(INSPECT)

@@ -66,6 +66,12 @@
           },
           {
             "context": "CodeQL (python)"
+          },
+          {
+            "context": "Submit NuGet dependencies"
+          },
+          {
+            "context": "Every package has a release within a year"
           }
         ]
       }

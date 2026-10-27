@@ -6,6 +6,8 @@ csharp_style_namespace_declarations = file_scoped:warning
 dotnet_sort_system_directives_first = true
 csharp_using_directive_placement = outside_namespace:warning
 dotnet_diagnostic.IDE0005.severity = warning
+# A value assigned and never read (InspectCode reports it only as a hint).
+dotnet_diagnostic.IDE0059.severity = warning
 
 # var: use it when the type is obvious from the right-hand side
 csharp_style_var_for_built_in_types = false:suggestion
@@ -68,3 +70,11 @@ dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1515.severity = none
 # Expected values read best inline in an assertion; a test runs each one once.
 dotnet_diagnostic.CA1861.severity = none
+
+# JetBrains InspectCode (make check), where the frameworks make a finding wrong:
+# - Immediate.Handlers fixes a handler's HandleAsync(request, cancellationToken) signature, so a
+#   handler that doesn't need one of them still declares it.
+# - Response records in Application are read by the JSON serializer, which InspectCode can't see.
+[{src/Modules/**/*.Application/**.cs,templates/module/**/*.Application/**.cs,tests/**.cs}]
+resharper_unused_parameter_local_highlighting = none
+resharper_not_accessed_positional_property_global_highlighting = none

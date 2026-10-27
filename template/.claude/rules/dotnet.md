@@ -24,4 +24,5 @@ Owned by house-template-dotnet. Before using an ASP.NET Core, EF Core or .NET AP
   - Acceptance tests (`tests/AcceptanceTests`): Reqnroll feature files in the product's words, one per feature, driving the API through `WebApplicationFactory<Program>`. A new endpoint comes with its scenarios.
   - Integration tests (`tests/IntegrationTests`): technical checks on the host (wire format, HTTP details).
   - A bug fix comes with a test that fails without it.
-- `make check` is what CI runs: locked restore, `dotnet format` check, the Release build and the tests with coverage.
+- **Supply chain:** `make check` fails on a licence outside `backend/licenses/allowed.json` and on any JetBrains InspectCode finding (exceptions in `backend/.editorconfig`, each with its reason). Before adding a package, check it in `docs/references/dotnet.md`'s terms: downloads, maintainers, last release, licence and an exit route; add a row there. `make package-health` flags packages with no release in a year; accept one only in `backend/package-health.json`, with a reason and an end date.
+- `make check` is what CI runs: locked restore, `dotnet format` check, the Release build, licences, InspectCode, the tests with coverage, and the architecture tests in Debug. `make doctor-backend` checks the machine.
