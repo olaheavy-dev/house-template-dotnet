@@ -1,0 +1,7 @@
+[
+  {
+    "Id": "Mono.Cecil",
+    "Reason": "Reads IL for the architecture tests; ArchUnitNET is built on it, so it can't go before ArchUnitNET does. Feature-complete and widely used (116M downloads), repository active in 2025, but no release since 2024-10-02.",
+    "AcceptedUntil": "2027-04-30"
+  }
+]

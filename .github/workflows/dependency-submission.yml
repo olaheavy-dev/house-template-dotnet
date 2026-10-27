@@ -1,0 +1,47 @@
+# For this repository: template/backend. GitHub's dependency graph doesn't read Directory.Packages.props,
+# NuGet lock files or the .NET tool manifest, so without this Dependabot alerts and dependency
+# review miss every NuGet package. It restores the backend and submits what it finds.
+name: Dependency submission
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  submit:
+    name: Submit NuGet dependencies
+    # Pull requests from forks get a read-only token; submission needs write access.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # the dependency submission API
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: template/global.json
+
+      # The scanner reads each project's obj/project.assets.json.
+      - name: Restore from the lock files
+        run: dotnet restore template/backend/Backend.slnx --locked-mode
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+      - name: Detect and submit dependencies
+        uses: advanced-security/component-detection-dependency-submission-action@a02aeda7a175ad4dd38a13c4d3ff2df9da8f2cf0 # v0.2.0
+        with:
+          detectorsCategories: NuGet
+          fail-on-empty: true

@@ -62,14 +62,32 @@ jobs:
 
       # The template's C# is plain code (no Jinja), so it builds and tests in place: the same
       # steps as a generated project's make check, on every Dependabot update too.
-      - name: Restore from the lock files
-        run: dotnet restore Backend.slnx --locked-mode
+      - name: Restore the tools and packages from their lock files
+        run: |
+          dotnet tool restore
+          dotnet restore Backend.slnx --locked-mode
 
       - name: Check formatting
         run: dotnet format Backend.slnx --verify-no-changes --no-restore
 
       - name: Build with every analyzer warning as an error
         run: dotnet build Backend.slnx --configuration Release --no-restore
+
+      - name: Check every package's licence
+        run: >-
+          dotnet nuget-license --input Backend.slnx --include-transitive
+          --allowed-license-types licenses/allowed.json
+          --override-package-information licenses/overrides.json --error-only
+
+      - name: Run JetBrains InspectCode and fail on any issue
+        run: |
+          dotnet jb inspectcode Backend.slnx --output="$RUNNER_TEMP/inspectcode.sarif" --format=Sarif \
+            --severity=WARNING --no-build --properties:Configuration=Release --verbosity=WARN \
+            --exclude='**/ArchitectureTests.Fixtures/**'
+          if grep -q '"ruleId"' "$RUNNER_TEMP/inspectcode.sarif"; then
+            grep -E '"(ruleId|uri|startLine)"' "$RUNNER_TEMP/inspectcode.sarif" | head -60
+            exit 1
+          fi
 
       - name: Run the tests
         run: dotnet test --solution Backend.slnx --configuration Release --no-build

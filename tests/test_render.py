@@ -23,7 +23,10 @@ PROJECTS = sorted(p.relative_to(BACKEND).as_posix() for p in BACKEND.rglob("*.cs
 
 def test_layer_renders_the_backend_and_its_answers(render):
     project = render()
-    for path in ("global.json", "backend/Backend.slnx", "backend/Directory.Build.props",
+    for path in ("global.json", ".config/dotnet-tools.json", "tools/check_package_health.py",
+                 ".github/workflows/dependency-submission.yml", ".github/workflows/package-health.yml",
+                 "backend/licenses/allowed.json", "backend/licenses/overrides.json", "backend/package-health.json",
+                 "backend/Backend.slnx", "backend/Directory.Build.props",
                  "backend/src/Api/Api/Program.cs", "mk/dotnet.mk", ".claude/rules/dotnet.md",
                  "docs/references/dotnet.md", ".github/template-owned/dotnet.txt"):
         assert (project / path).is_file(), path
@@ -190,3 +193,35 @@ def test_program_keeps_the_markers_make_module_inserts_at():
 
 def test_make_check_runs_the_architecture_tests_in_debug_too(render):
     assert "dotnet test --project backend/tests/ArchitectureTests --configuration Debug" in make_dry_run(render(), "check-dotnet")
+
+
+def test_make_check_runs_the_licence_check_and_inspectcode(render):
+    project = render()
+    check = make_dry_run(project, "check-dotnet")
+    assert "dotnet nuget-license" in check and "dotnet jb inspectcode" in check
+    licences = make_dry_run(project, "licenses-backend")
+    assert "--allowed-license-types backend/licenses/allowed.json" in licences
+    assert "--include-transitive" in licences
+    inspect = make_dry_run(project, "inspect-backend")
+    assert "--severity=WARNING" in inspect and "ArchitectureTests.Fixtures" in inspect
+
+
+def test_every_licence_override_matches_the_pinned_version():
+    # An override names an exact version, so upgrading the package means looking at its licence again.
+    pinned = {item.get("Include"): item.get("Version")
+              for item in ET.parse(BACKEND / "Directory.Packages.props").getroot().iter("PackageVersion")}
+    for override in json.loads((BACKEND / "licenses/overrides.json").read_text()):
+        assert pinned.get(override["Id"]) == override["Version"], override["Id"]
+
+
+def test_the_tools_are_pinned_without_roll_forward():
+    tools = json.loads((TEMPLATE / ".config/dotnet-tools.json").read_text())["tools"]
+    assert set(tools) == {"jetbrains.resharper.globaltools", "nuget-license"}
+    assert all(tool["rollForward"] is False and re.fullmatch(r"[\d.]+", tool["version"]) for tool in tools.values())
+
+
+def test_every_accepted_stale_package_has_a_reason_and_an_end_date():
+    from datetime import date
+    for entry in json.loads((BACKEND / "package-health.json").read_text()):
+        assert entry["Reason"].strip(), entry["Id"]
+        assert date.fromisoformat(entry["AcceptedUntil"]) > date(2026, 10, 27), entry["Id"]
