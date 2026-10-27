@@ -13,6 +13,7 @@
     <PackageVersion Include="Immediate.Handlers" Version="4.2.0" />
     <!-- [UsedImplicitly] and friends tell InspectCode what a framework uses; compile-time only. -->
     <PackageVersion Include="JetBrains.Annotations" Version="2026.2.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <!-- Writes the OpenAPI document at build time (backend/openapi/v1.json). -->
@@ -36,6 +37,8 @@
     <PackageVersion Include="NUnit.Analyzers" Version="4.15.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="6.3.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="1.20.1" />
+    <!-- Keycloak in a container for the sign-in tests (needs Docker, as the database tests will). -->
+    <PackageVersion Include="Testcontainers.Keycloak" Version="4.16.0" />
     <PackageVersion Include="Reqnroll.NUnit" Version="3.3.4" />
     <PackageVersion Include="TngTech.ArchUnitNET" Version="0.13.5" />
     <!-- Reads constructor IL for IntegrationEventsSetEveryProperty; ArchUnitNET is built on it. -->

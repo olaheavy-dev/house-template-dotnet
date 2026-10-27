@@ -78,11 +78,17 @@ internal static class Hardening
         return services;
     }
 
-    /// <summary>CORS, the rate limit and timeouts; after the error handlers, so a refusal is a problem too.</summary>
+    /// <summary>
+    /// CORS, sign-in, the rate limit, permissions and timeouts, in that order: after the error
+    /// handlers, so a refusal is a problem too; the rate limit after sign-in, so a signed-in user is
+    /// limited as themselves, and before permissions, so refused requests count too.
+    /// </summary>
     public static WebApplication UseHardening(this WebApplication app)
     {
         app.UseCors();
+        app.UseAuthentication();
         app.UseRateLimiter();
+        app.UseAuthorization();
         app.UseRequestTimeouts();
         return app;
     }

@@ -2,6 +2,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Api;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Options;
 
 namespace IntegrationTests;
@@ -148,21 +153,31 @@ public sealed class HardeningTests
     [TestCase("Api:CorsOrigins:0", "https://app.example.com/")]
     [TestCase("Api:CorsOrigins:0", "*")]
     [TestCase("Api:CorsOrigins:0", "app.example.com")]
-    public async Task A_bad_setting_stops_the_app_from_starting(string key, string value)
+    [TestCase("Auth:Issuer", "keycloak/realms/app")]
+    [TestCase("Auth:MetadataAddress", "ftp://keycloak/realms/app")]
+    [TestCase("Auth:Audience", "")]
+    public void A_bad_setting_stops_the_app_from_starting(string key, string value) =>
+        // The checks the host runs when it starts. (Starting a whole WebApplicationFactory host on a
+        // bad setting sometimes reports its own disposal instead of the validation error.)
+        Assert.That(() => ValidateAtStartWith(key, value), Throws.InstanceOf<OptionsValidationException>());
+
+    [TestCase("Api:CorsOrigins:0", "https://app.example.com")]
+    [TestCase("Api:CorsOrigins:0", "http://localhost:3000")]
+    [TestCase("Auth:Issuer", "http://localhost:8080/realms/app")]
+    [TestCase("Api:RateLimitPerMinute", "1")]
+    public void A_good_setting_starts(string key, string value) =>
+        Assert.That(() => ValidateAtStartWith(key, value), Throws.Nothing);
+
+    private static void ValidateAtStartWith(string key, string value)
     {
-        await using var api = new TestApi(_ => { }, settings: new Dictionary<string, string> { [key] = value });
-        OptionsValidationException? refused = null;
-
-        try
-        {
-            using var client = api.CreateClient();
-        }
-        catch (OptionsValidationException exception)
-        {
-            refused = exception;
-        }
-
-        Assert.That(refused, Is.Not.Null);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { [key] = value })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddHardening(configuration);
+        services.AddAuth(configuration, new HostingEnvironment { EnvironmentName = Environments.Production });
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IStartupValidator>().Validate();
     }
 
     private static StringContent Json(string json) => new(json, Encoding.UTF8, new MediaTypeHeaderValue("application/json"));

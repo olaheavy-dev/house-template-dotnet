@@ -13,6 +13,7 @@ builder.Services.AddCommon();
 builder.Services.AddApiProblemDetails();
 builder.Services.AddApiOpenApi(builder.Configuration);
 builder.Services.AddHardening(builder.Configuration);
+builder.Services.AddAuth(builder.Configuration, builder.Environment);
 // Each module registers itself. `make module NAME=<Name>` adds new ones above the marker.
 builder.Services.AddPlatformModule(builder.Configuration);
 // make module: registrations
