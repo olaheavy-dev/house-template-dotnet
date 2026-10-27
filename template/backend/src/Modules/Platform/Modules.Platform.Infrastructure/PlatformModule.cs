@@ -1,4 +1,4 @@
-using Common.Application;
+using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Platform.Application;
@@ -13,6 +13,7 @@ public static class PlatformModule
         ArgumentNullException.ThrowIfNull(configuration);
         var title = configuration["Api:Title"];
         services.AddSingleton(new ServiceName(string.IsNullOrWhiteSpace(title) ? "api" : title));
-        return services.AddHandlersFrom(Application.AssemblyReference.Assembly);
+        services.AddValidatorsFromAssembly(Application.AssemblyReference.Assembly, includeInternalTypes: true);
+        return services.AddModulesPlatformApplicationHandlers();
     }
 }

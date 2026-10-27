@@ -19,7 +19,7 @@ It asks one question, the API's display name (default: the project name plus "AP
 |---|---|
 | `global.json` | The .NET SDK (10.0.403, the October 2026 security release) and Microsoft.Testing.Platform as the test runner |
 | `backend/Directory.Build.props`, `Directory.Packages.props`, `nuget.config`, `.editorconfig` | The strict build: every analyzer rule as an error (the few exceptions say why), central package management with transitive pinning, committed lock files restored in locked mode, NuGet audit of every dependency, nuget.org only |
-| `backend/src/Common/` | The shared kernel: ErrorOr for expected failures, a small in-house dispatcher (commands and queries, no MediatR) and RFC 9457 problem responses with a stable `code` |
+| `backend/src/Common/` | The shared kernel: ErrorOr for expected failures, Immediate.Handlers (source-generated handlers, no MediatR) with logging and FluentValidation pipeline steps, and RFC 9457 problem responses with a stable `code` |
 | `backend/src/Modules/Platform/` | The example module, in the six projects every module has (Domain, Application, Infrastructure, Presentation, IntegrationEvents, PublicApi), with `GET /v1/platform/ping` |
 | `backend/src/Api/Api` | The host: modules register themselves; Carter maps their endpoints |
 | `backend/tests/` | NUnit unit tests, Reqnroll acceptance tests (feature files driving the API in memory) and integration tests |

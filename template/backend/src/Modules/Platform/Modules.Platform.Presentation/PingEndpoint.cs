@@ -1,6 +1,7 @@
 using Carter;
-using Common.Application.Messaging;
 using Common.Presentation;
+using ErrorOr;
+using Immediate.Handlers.Shared;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -13,8 +14,10 @@ public sealed class PingEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapGet("v1/platform/ping", async (IDispatcher dispatcher, CancellationToken cancellationToken) =>
-                ApiResults.Ok(await dispatcher.Query(new GetPingQuery(), cancellationToken)))
+        app.MapGet("v1/platform/ping", async (
+                IHandler<GetPingQuery, ErrorOr<PingResponse>> handler,
+                CancellationToken cancellationToken) =>
+                ApiResults.Ok(await handler.HandleAsync(new GetPingQuery(), cancellationToken)))
             .WithName("GetPing")
             .WithTags("Platform")
             .Produces<PingResponse>();

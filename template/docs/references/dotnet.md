@@ -9,6 +9,8 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | Problem Details (RFC 9457) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/error-handling-api |
 | Carter | 10.0.0 | https://github.com/CarterCommunity/Carter |
 | ErrorOr | 2.1.1 | https://github.com/amantinband/error-or |
+| Immediate.Handlers | 4.2.0 | https://github.com/ImmediatePlatform/Immediate.Handlers |
+| FluentValidation | 12.2.0 | https://docs.fluentvalidation.net |
 | Central package management | NuGet | https://learn.microsoft.com/nuget/consume-packages/central-package-management |
 | Lock files and locked restore | NuGet | https://learn.microsoft.com/nuget/consume-packages/package-references-in-project-files#locking-dependencies |
 | Code analysis | .NET 10 analyzers, `AnalysisMode=All` | https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview |
