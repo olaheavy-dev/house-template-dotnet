@@ -16,8 +16,9 @@ from conftest import BASE_ANSWERS, ROOT, TEMPLATE
 
 REFUSED = (ValueError, UserMessageError, CopierAnswersInterrupt)
 BACKEND = TEMPLATE / "backend"
+# The module template's projects are copied by `make module`, never built in place.
 PROJECTS = sorted(p.relative_to(BACKEND).as_posix() for p in BACKEND.rglob("*.csproj")
-                  if not {"bin", "obj"} & set(p.parts))
+                  if not {"bin", "obj", "templates"} & set(p.parts))
 
 
 def test_layer_renders_the_backend_and_its_answers(render):
@@ -161,3 +162,31 @@ def test_rules_file_loads_only_for_backend_paths(render):
 def test_base_answers_fixture_matches_the_pinned_base_version():
     workflow = yaml.safe_load((ROOT / ".github/workflows/test.yml").read_text())
     assert workflow["env"]["BASE_VERSION"] == BASE_ANSWERS["_commit"]
+
+
+def test_make_module_adds_a_module_from_the_template_without_installing_it(render):
+    module = make_dry_run(render(), "module").replace("\\\n", " ")
+    assert "dotnet new install backend/templates/module --force --debug:custom-hive" in module
+    assert "dotnet new house-module --name" in module
+    assert "dotnet sln backend/Backend.slnx add" in module
+    assert "Api.csproj reference" in module
+
+
+def test_the_module_template_holds_the_six_projects_and_a_test():
+    projects = sorted(p.relative_to(BACKEND / "templates/module").as_posix()
+                      for p in (BACKEND / "templates/module").rglob("*.csproj"))
+    layers = ["Application", "Domain", "Infrastructure", "IntegrationEvents", "Presentation", "PublicApi"]
+    assert projects == sorted([f"src/Modules/Sample/Modules.Sample.{layer}/Modules.Sample.{layer}.csproj" for layer in layers]
+                              + ["tests/Modules.Sample.UnitTests/Modules.Sample.UnitTests.csproj"])
+    config = json.loads((BACKEND / "templates/module/.template.config/template.json").read_text())
+    assert (config["shortName"], config["sourceName"]) == ("house-module", "Sample")
+
+
+def test_program_keeps_the_markers_make_module_inserts_at():
+    program = (BACKEND / "src/Api/Api/Program.cs").read_text()
+    assert "// make module: registrations" in program
+    assert "// make module: endpoints" in program
+
+
+def test_make_check_runs_the_architecture_tests_in_debug_too(render):
+    assert "dotnet test --project backend/tests/ArchitectureTests --configuration Debug" in make_dry_run(render(), "check-dotnet")

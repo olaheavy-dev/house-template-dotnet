@@ -20,6 +20,8 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AcceptanceTests/AcceptanceTests.csproj" />
+    <Project Path="tests/ArchitectureTests.Fixtures/ArchitectureTests.Fixtures.csproj" />
+    <Project Path="tests/ArchitectureTests/ArchitectureTests.csproj" />
     <Project Path="tests/Common.UnitTests/Common.UnitTests.csproj" />
     <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
     <Project Path="tests/Modules.Platform.UnitTests/Modules.Platform.UnitTests.csproj" />

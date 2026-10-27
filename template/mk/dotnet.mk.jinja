@@ -12,7 +12,7 @@ INSTALLS += install-dotnet
 CHECKS += check-dotnet
 FAST_CHECKS += check-fast-dotnet
 
-.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend test-backend dev-backend lock-backend
+.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend test-backend dev-backend lock-backend module
 
 install-dotnet: ## Restore the backend's packages from its lock files (needs the SDK in global.json)
 	dotnet restore $(BACKEND) --locked-mode
@@ -21,6 +21,8 @@ check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer
 	dotnet format $(BACKEND) --verify-no-changes --no-restore
 	dotnet build $(BACKEND) --configuration Release --no-restore
 	dotnet test --solution $(BACKEND) --configuration Release --no-build --coverlet --coverlet-output-format cobertura --results-directory $(ARTIFACTS)/test-results
+	# Again in Debug: ArchUnitNET reads the compiled IL, and Release optimisations can hide a dependency.
+	dotnet test --project backend/tests/ArchitectureTests --configuration Debug
 
 check-fast-dotnet: build-backend ## Backend: the build and its analyzers (the pre-push and stop-hook checks)
 
@@ -35,3 +37,23 @@ dev-backend: ## Run the API with reload on http://localhost:5000
 
 lock-backend: ## Update the lock files after changing backend/Directory.Packages.props or a project's packages
 	dotnet restore $(BACKEND) --force-evaluate
+
+# A project-local template store, so `make module` installs nothing on the machine.
+TEMPLATE_HIVE := $(ARTIFACTS)/dotnet-new
+PROGRAM := backend/src/Api/Api/Program.cs
+
+module: ## Add a module in its six projects with an example query and test: make module NAME=Billing
+	@case "$(NAME)" in [A-Z]*) ;; *) echo "Usage: make module NAME=Billing (PascalCase)"; exit 1;; esac
+	@case "$(NAME)" in *[!A-Za-z0-9]*) echo "NAME must be letters and digits only"; exit 1;; esac
+	@test ! -e backend/src/Modules/$(NAME) || { echo "backend/src/Modules/$(NAME) already exists"; exit 1; }
+	dotnet new install backend/templates/module --force --debug:custom-hive $(TEMPLATE_HIVE) >/dev/null
+	dotnet new house-module --name $(NAME) --output backend --debug:custom-hive $(TEMPLATE_HIVE)
+	dotnet sln $(BACKEND) add $$(find backend/src/Modules/$(NAME) backend/tests/Modules.$(NAME).UnitTests -name '*.csproj' | sort)
+	dotnet add backend/src/Api/Api/Api.csproj reference backend/src/Modules/$(NAME)/Modules.$(NAME).Infrastructure/Modules.$(NAME).Infrastructure.csproj
+	awk -v name=$(NAME) 'NR == 1 { print "using Modules." name ".Infrastructure;" } \
+		/\/\/ make module: registrations/ { print "builder.Services.Add" name "Module(builder.Configuration);" } \
+		/\/\/ make module: endpoints/ { print "    Modules." name ".Presentation.AssemblyReference.Assembly," } { print }' \
+		$(PROGRAM) > $(PROGRAM).new && mv $(PROGRAM).new $(PROGRAM)
+	dotnet restore $(BACKEND) --force-evaluate
+	dotnet format $(BACKEND) --include $(PROGRAM) --no-restore
+	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, and its registration in Program.cs. Run make check."

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableNUnitRunner>true</EnableNUnitRunner>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="coverlet.MTP" />
+    <PackageReference Include="TngTech.ArchUnitNET" />
+    <PackageReference Include="Mono.Cecil" />
+    <!-- The host references every module, so its output holds every assembly the rules check. -->
+    <ProjectReference Include="..\..\src\Api\Api\Api.csproj" />
+    <ProjectReference Include="..\ArchitectureTests.Fixtures\ArchitectureTests.Fixtures.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+</Project>

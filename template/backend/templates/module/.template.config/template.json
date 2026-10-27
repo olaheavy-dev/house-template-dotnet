@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "house-template-dotnet",
+  "classifications": ["Modular monolith"],
+  "identity": "House.Module",
+  "name": "House module",
+  "shortName": "house-module",
+  "description": "A module in the six projects every module has, with an example query, its endpoint and a unit test. Run through `make module NAME=<Name>`.",
+  "sourceName": "Sample",
+  "preferNameDirectory": false,
+  "tags": { "language": "C#", "type": "project" },
+  "symbols": {
+    "route": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "lowerCase",
+      "replaces": "sample-route"
+    }
+  },
+  "forms": {
+    "lowerCase": { "identifier": "lowerCaseInvariant" }
+  }
+}
