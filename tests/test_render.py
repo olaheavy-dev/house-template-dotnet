@@ -39,12 +39,44 @@ def test_the_api_title_reaches_the_hosts_settings(render):
     assert settings["Api"]["Title"] == "Course Lens API"
 
 
-@pytest.mark.parametrize("title", ['Acme "Public" API', "Back\\slash API", "Tab\tAPI"])
+TITLES = ['Acme "Public" API', "Back\\slash API", "Bob's <API> & café"]
+
+
+@pytest.mark.parametrize("title", TITLES)
 def test_any_title_stays_valid_json_in_the_settings(render, title):
     # Codex review on PR 2: a quote or backslash in the title broke appsettings.json, so the API
     # couldn't start.
     settings = json.loads((render(api_title=title) / "backend/src/Api/Api/appsettings.json").read_text())
     assert settings["Api"]["Title"] == title
+
+
+@pytest.mark.parametrize("title", TITLES)
+def test_the_openapi_document_holds_the_title_as_the_build_writes_it(render, title):
+    # make check fails when the committed document differs from the build's by a single byte, and
+    # the generator escapes only a quote and a backslash: Jinja's tojson would also escape ', <, >,
+    # & and every non-ASCII character, so a fresh project would fail its first check.
+    text = (render(api_title=title) / "backend/openapi/v1.json").read_text()
+    written = title.replace("\\", "\\\\").replace('"', '\\"')
+    assert f'    "title": "{written}",\n' in text
+    assert json.loads(text)["info"]["title"] == title
+    assert text.endswith("}\n")
+
+
+@pytest.mark.parametrize("title", ["Tab\tAPI", "Two\nlines"])
+def test_layer_refuses_a_title_with_control_characters(render, title):
+    with pytest.raises(REFUSED):
+        render(api_title=title)
+
+
+def test_the_template_document_is_the_in_place_build_with_the_placeholder_title():
+    # CI builds the template in place with Api__Title set to this placeholder and diffs the result
+    # against the committed template, so the template's document can't drift from the code.
+    text = (BACKEND / "openapi/v1.json.jinja").read_text()
+    assert '    "title": "{{ api_title_in_json }}",\n' in text
+    assert "{{" not in text.replace("{{ api_title_in_json }}", "")
+    workflow = (ROOT / ".github/workflows/test.yml").read_text()
+    assert 'Api__Title: "{{ api_title_in_json }}"' in workflow
+    assert "diff -u openapi/v1.json.jinja openapi/v1.json" in workflow
 
 
 def test_layer_refuses_a_project_without_base_answers(render, project):
@@ -149,6 +181,15 @@ def test_licence_changed_packages_are_never_used():
         assert name not in packages
 
 
+def test_the_openapi_document_has_one_stack():
+    # Microsoft.AspNetCore.OpenApi writes the document; a second generator would describe the API
+    # differently from the file the Next.js layer reads.
+    packages = (BACKEND / "Directory.Packages.props").read_text()
+    assert "Microsoft.AspNetCore.OpenApi" in packages
+    for name in ("Swashbuckle", "NSwag"):
+        assert name not in packages
+
+
 def test_the_sdk_pin_is_exact_and_matches_the_references():
     sdk = json.loads((TEMPLATE / "global.json").read_text())["sdk"]
     assert re.fullmatch(r"\d+\.\d+\.\d{3}", sdk["version"])
@@ -173,6 +214,8 @@ def test_make_module_adds_a_module_from_the_template_without_installing_it(rende
     assert "dotnet new house-module --name" in module
     assert "dotnet sln backend/Backend.slnx add" in module
     assert "Api.csproj reference" in module
+    # Its example endpoint changes the OpenAPI document, which make check would then find stale.
+    assert "dotnet build backend/src/Api/Api" in module
 
 
 def test_the_module_template_holds_the_six_projects_and_a_test():
@@ -189,6 +232,12 @@ def test_program_keeps_the_markers_make_module_inserts_at():
     program = (BACKEND / "src/Api/Api/Program.cs").read_text()
     assert "// make module: registrations" in program
     assert "// make module: endpoints" in program
+
+
+def test_make_check_fails_on_a_stale_openapi_document_without_rewriting_it(render):
+    check = make_dry_run(render(), "check-dotnet")
+    assert "-p:OpenApiDocumentsDirectory=" in check and ".artifacts/openapi" in check
+    assert "cmp -s backend/openapi/v1.json .artifacts/openapi/v1.json" in check
 
 
 def test_make_check_runs_the_architecture_tests_in_debug_too(render):
