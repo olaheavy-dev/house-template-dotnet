@@ -14,7 +14,7 @@ concurrency:
 env:
   # The base layer the generated project starts from. Keep tests/conftest.py's BASE_ANSWERS in step
   # (a test checks it) when moving to a newer house-template-base release.
-  BASE_VERSION: v0.5.0
+  BASE_VERSION: v0.6.0
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_NOLOGO: "1"
 

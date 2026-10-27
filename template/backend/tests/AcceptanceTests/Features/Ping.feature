@@ -5,3 +5,7 @@ Feature: Ping
     When I ping the API
     Then it answers "ok"
     And it names itself
+
+  Scenario: A client watches the API's pings
+    When I watch the API's pings
+    Then the first event is a ping that answers "ok"
