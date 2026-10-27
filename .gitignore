@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+bin/
+obj/
+.artifacts/
+TestResults/
+StrykerOutput/
+# Local keys: never committed, never copied.
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
