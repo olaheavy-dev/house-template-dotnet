@@ -7,6 +7,7 @@ obj/
 .artifacts/
 TestResults/
 StrykerOutput/
+*.feature.cs
 # Local keys: never committed, never copied.
 .env
 .env.*

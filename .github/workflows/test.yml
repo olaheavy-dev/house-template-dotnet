@@ -11,11 +11,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  # The base layer the generated project starts from. Keep tests/conftest.py's BASE_ANSWERS in step
+  # (a test checks it) when moving to a newer house-template-base release.
+  BASE_VERSION: v0.5.0
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
 jobs:
   repository:
     name: Repository tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -23,6 +30,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # Copier reads the template version from git history and tags
 
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
@@ -31,3 +39,82 @@ jobs:
 
       - name: Run the tests
         run: uv run --frozen pytest
+
+  template-backend:
+    name: Template backend builds and passes its tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: template/backend
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: template/global.json
+
+      # The template's C# is plain code (no Jinja), so it builds and tests in place: the same
+      # steps as a generated project's make check, on every Dependabot update too.
+      - name: Restore from the lock files
+        run: dotnet restore Backend.slnx --locked-mode
+
+      - name: Check formatting
+        run: dotnet format Backend.slnx --verify-no-changes --no-restore
+
+      - name: Build with every analyzer warning as an error
+        run: dotnet build Backend.slnx --configuration Release --no-restore
+
+      - name: Run the tests
+        run: dotnet test --solution Backend.slnx --configuration Release --no-build
+
+  generated-project:
+    name: Generated project passes its checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: template/global.json
+
+      - name: Render house-template-base, then this layer
+        env:
+          DEMO: ${{ runner.temp }}/demo
+        run: |
+          uv run --frozen copier copy --trust --defaults --vcs-ref "$BASE_VERSION" \
+            -d project_name="Demo App" -d 'stacks=["dotnet"]' \
+            https://github.com/olaheavy-dev/house-template-base.git "$DEMO"
+          git -C "$DEMO" init -q -b main
+          git -C "$DEMO" add -A
+          git -C "$DEMO" -c user.email=ci@example.com -c user.name=ci commit -q -m "chore: start from house-template-base"
+          uv run --frozen copier copy --trust --defaults --vcs-ref HEAD . "$DEMO"
+          git -C "$DEMO" add -A
+          git -C "$DEMO" -c user.email=ci@example.com -c user.name=ci commit -q -m "chore: add the dotnet layer"
+
+      - name: Run the project's make check
+        working-directory: ${{ runner.temp }}/demo
+        run: make install && make check
+
+      - name: The checks leave the tree clean
+        working-directory: ${{ runner.temp }}/demo
+        run: git status --porcelain && test -z "$(git status --porcelain)"

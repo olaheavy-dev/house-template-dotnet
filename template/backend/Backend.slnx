@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Api/">
+    <Project Path="src/Api/Api/Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Common/">
+    <Project Path="src/Common/Common.Application/Common.Application.csproj" />
+    <Project Path="src/Common/Common.Domain/Common.Domain.csproj" />
+    <Project Path="src/Common/Common.Infrastructure/Common.Infrastructure.csproj" />
+    <Project Path="src/Common/Common.Presentation/Common.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Platform/">
+    <Project Path="src/Modules/Platform/Modules.Platform.Application/Modules.Platform.Application.csproj" />
+    <Project Path="src/Modules/Platform/Modules.Platform.Domain/Modules.Platform.Domain.csproj" />
+    <Project Path="src/Modules/Platform/Modules.Platform.Infrastructure/Modules.Platform.Infrastructure.csproj" />
+    <Project Path="src/Modules/Platform/Modules.Platform.IntegrationEvents/Modules.Platform.IntegrationEvents.csproj" />
+    <Project Path="src/Modules/Platform/Modules.Platform.Presentation/Modules.Platform.Presentation.csproj" />
+    <Project Path="src/Modules/Platform/Modules.Platform.PublicApi/Modules.Platform.PublicApi.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AcceptanceTests/AcceptanceTests.csproj" />
+    <Project Path="tests/Common.UnitTests/Common.UnitTests.csproj" />
+    <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
+    <Project Path="tests/Modules.Platform.UnitTests/Modules.Platform.UnitTests.csproj" />
+  </Folder>
+</Solution>

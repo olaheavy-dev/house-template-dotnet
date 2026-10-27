@@ -1,5 +1,6 @@
-# Updates for this repository's workflows and test dependencies. The .NET backend the layer
-# generates (template/backend) gets nuget and dotnet-sdk entries when it lands.
+# Updates for this repository's workflows and test dependencies, and for the backend the layer
+# generates: template/backend is plain C# with central package management and lock files, so
+# Dependabot updates it in place; generated projects get the changes through template updates.
 version: 2
 
 updates:
@@ -30,3 +31,29 @@ updates:
     groups:
       test-dependencies:
         patterns: ["*"]
+
+  - package-ecosystem: nuget
+    directory: /template/backend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels: [dependencies]
+    # Generated projects get these as feat/fix changes through template updates.
+    commit-message:
+      prefix: fix
+      include: scope
+    groups:
+      backend-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: dotnet-sdk
+    directory: /template
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels: [dependencies]
+    commit-message:
+      prefix: fix
+      include: scope

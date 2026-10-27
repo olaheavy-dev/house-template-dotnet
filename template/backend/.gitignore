@@ -1,0 +1,9 @@
+# Owned by house-template-dotnet.
+bin/
+obj/
+TestResults/
+StrykerOutput/
+*.user
+# Reqnroll generates each feature's code-behind at build time.
+*.feature.cs
+appsettings.*.local.json
