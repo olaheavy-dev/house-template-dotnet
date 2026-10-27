@@ -63,6 +63,24 @@ def test_the_env_example_names_only_settings_the_api_has(render):
     assert names == {"CorsOrigins", "MaxRequestBodyBytes", "RequestTimeoutSeconds", "RateLimitPerMinute"}
     for name in names:
         assert re.search(rf"public \S+ {name} {{ get; init; }}", options), name
+    auth = (BACKEND / "src/Api/Api/AuthOptions.cs").read_text()
+    auth_names = set(re.findall(r"Auth__(\w+)=", example))
+    assert auth_names == {"Issuer", "RequireHttpsMetadata", "MetadataAddress", "Audience"}
+    for name in auth_names:
+        assert re.search(rf"public \S+ {name} {{ get; init; }}", auth), name
+
+
+def test_the_local_realm_gives_every_user_the_permissions_the_api_declares():
+    # A permission an endpoint requires but no Keycloak role grants would lock everyone out.
+    realm = json.loads((BACKEND / "keycloak/realm.json").read_text())
+    assert realm["realm"] == "app"
+    roles = {role["name"] for role in realm["roles"]["client"]["api"]}
+    declared = set(re.findall(r'public const string \w+ = "([\w.]+)";',
+                              (BACKEND / "src/Modules/Platform/Modules.Platform.Presentation/PlatformPermissions.cs").read_text()))
+    assert declared and declared <= roles
+    default = next(role for role in realm["roles"]["realm"] if role["name"] == realm["defaultRole"]["name"])
+    assert declared <= set(default["composites"]["client"]["api"])
+    assert "*" not in roles
 
 
 def test_make_dev_backend_runs_in_development_with_the_env_file(render):

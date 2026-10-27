@@ -21,6 +21,10 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | Host filtering (`AllowedHosts`) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/servers/kestrel/host-filtering |
 | Server-Sent Events (`TypedResults.ServerSentEvents`) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis/responses#server-sent-events-sse |
 | Options validation | 10.0 | https://learn.microsoft.com/dotnet/core/extensions/options#options-validation |
+| JWT bearer authentication | Microsoft.AspNetCore.Authentication.JwtBearer 10.0.14 | https://learn.microsoft.com/aspnet/core/security/authentication/configure-jwt-bearer-authentication |
+| Minimal API authorization (`RequireAuthorization`) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis/security |
+| Keycloak (local sign-in, realm import) | 26.8.1 | https://www.keycloak.org/server/importExport |
+| Testcontainers for .NET (Keycloak) | 4.16.0 | https://dotnet.testcontainers.org/modules/ |
 | Security headers | NetEscapades.AspNetCore.SecurityHeaders 1.3.1 | https://github.com/andrewlock/NetEscapades.AspNetCore.SecurityHeaders |
 | JetBrains.Annotations (`[UsedImplicitly]` for what a framework uses) | 2026.2.0 | https://www.jetbrains.com/help/resharper/Reference__Code_Annotation_Attributes.html |
 | Scalar (API reference, development only) | Scalar.AspNetCore 2.18.3 | https://scalar.com/products/api-references/integrations/aspnetcore/integration |
@@ -59,6 +63,7 @@ Checked 27 Oct 2026; review this table whenever Dependabot proposes a major upgr
 | Microsoft.Extensions.Http.Resilience | 180 million | Microsoft | 10.11.0, Oct 2026 | MIT | Built on Polly; or Polly directly |
 | Microsoft.Extensions.Diagnostics.Testing, OpenTelemetry.Exporter.InMemory | — | Microsoft, OpenTelemetry | 10.11.0, 1.20.1 | MIT, Apache-2.0 | Tests only |
 | NetEscapades.AspNetCore.SecurityHeaders | 20 million | Andrew Lock | 1.3.1, **Dec 2025** (repository active, Jul 2026) | MIT | The API preset is a dozen headers set in `OnStarting`: a small middleware |
+| Testcontainers, Testcontainers.Keycloak | 138 million, 1.2 million | Testcontainers (Docker) | 4.16.0, Oct 2026 | MIT | Tests only; `docker run` in a fixture |
 | Microsoft.Extensions.TimeProvider.Testing | — | Microsoft | 10.11.0, Oct 2026 | MIT | Tests only |
 | Scalar.AspNetCore | 56 million | Scalar (company), 260+ contributors | 2.18.3, Oct 2026 | MIT | Development only; the document is the build's file, so any viewer (or none) works |
 | JetBrains.Annotations | 515 million | JetBrains | 2026.2.0, Jun 2026 | MIT | Compile-time only (`PrivateAssets=all`); delete the attributes |

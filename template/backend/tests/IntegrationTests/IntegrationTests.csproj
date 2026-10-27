@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
+    <PackageReference Include="Testcontainers.Keycloak" />
     <ProjectReference Include="..\..\src\Api\Api\Api.csproj" />
   </ItemGroup>
   <ItemGroup>
