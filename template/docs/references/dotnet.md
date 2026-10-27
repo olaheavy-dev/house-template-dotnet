@@ -16,6 +16,7 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | Code analysis | .NET 10 analyzers, `AnalysisMode=All` | https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview |
 | NUnit | 5.0.0 | https://docs.nunit.org |
 | ArchUnitNET | 0.13.5 (TngTech.ArchUnitNET) | https://archunitnet.readthedocs.io |
+| Mono.Cecil (IL reading in the architecture tests) | 0.11.6 | https://github.com/jbevain/cecil/wiki |
 | `dotnet new` templates (`make module`) | .NET 10 SDK | https://learn.microsoft.com/dotnet/core/tools/custom-templates |
 | Reqnroll | 3.3.4 (Reqnroll.NUnit) | https://docs.reqnroll.net |
 | Microsoft.Testing.Platform | via NUnit3TestAdapter 6.3.1 | https://learn.microsoft.com/dotnet/core/testing/microsoft-testing-platform-intro |

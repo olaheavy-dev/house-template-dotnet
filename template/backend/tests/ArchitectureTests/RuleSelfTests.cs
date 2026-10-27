@@ -39,11 +39,11 @@ public sealed class RuleSelfTests
             Rule("IntegrationEventsSetEveryProperty").Violations(Broken.Value),
             Does.Contain("Modules.Beta.IntegrationEvents.RefundIssued.Reason is not set by its constructor"));
 
-    [Test]
-    public void An_event_property_assigned_from_a_differently_named_parameter_passes() =>
-        Assert.That(
-            Rule("IntegrationEventsSetEveryProperty").Violations(Broken.Value),
-            Has.None.Contains("CustomerMoved"));
+    [TestCase("CustomerMoved", TestName = "An event property assigned from a differently named parameter through a chained constructor passes")]
+    [TestCase("ImportStarted", TestName = "An event property deliberately set to false or 0 passes")]
+    [TestCase("LabelChanged", TestName = "An event property over an explicit field the constructor sets passes")]
+    public void A_correctly_initialised_event_passes(string type) =>
+        Assert.That(Rule("IntegrationEventsSetEveryProperty").Violations(Broken.Value), Has.None.Contains(type));
 
     private static ArchitectureRule Rule(string name) => HouseRules.All.Single(rule => rule.Name == name);
 

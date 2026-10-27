@@ -14,6 +14,12 @@
           "Microsoft.Testing.Platform": "2.4.1"
         }
       },
+      "Mono.Cecil": {
+        "type": "Direct",
+        "requested": "[0.11.6, )",
+        "resolved": "0.11.6",
+        "contentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
+      },
       "NUnit": {
         "type": "Direct",
         "requested": "[5.0.0, )",
@@ -232,11 +238,6 @@
         "type": "Transitive",
         "resolved": "18.9.0",
         "contentHash": "Fz/qXC52VXXopzHj7v2reCKcCqSxkTDCkEDfkNAH0vni/7qK/KLMiEYtRmnUanxO2F2g2zZZ60qCpxF0AF7URA=="
-      },
-      "Mono.Cecil": {
-        "type": "Transitive",
-        "resolved": "0.11.6",
-        "contentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
       },
       "Newtonsoft.Json": {
         "type": "Transitive",

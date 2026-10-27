@@ -86,3 +86,28 @@ namespace Common.Domain.Broken
     // SharedKernelDependsOnNoModule: the shared kernel depending on a module.
     public sealed class Leak { public Modules.Beta.Domain.Invoice? Invoice; }
 }
+
+namespace Modules.Beta.IntegrationEvents
+{
+    // Not a violation: a property deliberately set to its default value.
+    public sealed class ImportStarted
+    {
+        public ImportStarted(System.Guid importId) { ImportId = importId; IsProcessed = false; Attempts = 0; }
+
+        public System.Guid ImportId { get; }
+
+        public bool IsProcessed { get; }
+
+        public int Attempts { get; }
+    }
+
+    // Not a violation: a property over an explicit field the constructor sets.
+    public sealed class LabelChanged
+    {
+        private readonly string _label;
+
+        public LabelChanged(string label) { _label = label; }
+
+        public string Label => _label;
+    }
+}

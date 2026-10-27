@@ -1,7 +1,8 @@
-using System.Reflection;
 using System.Text.RegularExpressions;
 using ArchUnitNET.Domain;
 using ArchUnitNET.Domain.Dependencies;
+using Mono.Cecil;
+using Mono.Cecil.Cil;
 using Assembly = System.Reflection.Assembly;
 
 namespace ArchitectureTests;
@@ -129,93 +130,75 @@ public static partial class HouseRules
             .Distinct()];
 
     /// <summary>
-    /// Builds each integration event through its public constructors with non-default sample
-    /// arguments, then requires every public property to hold a value. Checking behaviour rather than
-    /// names covers chained constructors and parameters named differently from their property.
+    /// Reads each integration event's constructor IL (Mono.Cecil; ArchUnitNET skips compiler-generated
+    /// backing fields). A property counts as set when a public constructor, directly or through a
+    /// chained one, writes its storage (its backing field, or a field its getter reads) or calls its
+    /// setter. An assignment of false or 0 counts; a parameter that is never assigned doesn't.
     /// </summary>
     private static List<string> UnsetEventProperties(CheckedCode code) =>
-        [.. code.Assemblies
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => type is { IsClass: true, IsPublic: true, IsAbstract: false }
-                && IntegrationEventsNamespace().IsMatch(type.Namespace ?? string.Empty))
-            .SelectMany(UnsetProperties)];
+        [.. code.Assemblies.SelectMany(UnsetEventProperties)];
 
-    private static IEnumerable<string> UnsetProperties(Type type)
+    private static IEnumerable<string> UnsetEventProperties(Assembly assembly)
     {
-        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(property => property.GetIndexParameters().Length == 0)
-            .ToList();
-        var set = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var constructor in type.GetConstructors())
+        using var module = ModuleDefinition.ReadModule(assembly.Location);
+        var violations = new List<string>();
+        foreach (var type in module.GetTypes().Where(type => type is { IsClass: true, IsPublic: true, IsAbstract: false }
+            && IntegrationEventsNamespace().IsMatch(type.Namespace)))
         {
-            var instance = constructor.Invoke([.. constructor.GetParameters().Select(p => SampleValue(p.ParameterType, 0))]);
-            set.UnionWith(properties.Where(property => !IsDefault(property.GetValue(instance))).Select(property => property.Name));
+            var assigned = new HashSet<string>(StringComparer.Ordinal);
+            var visited = new HashSet<MethodDefinition>();
+            foreach (var constructor in type.Methods.Where(method => method is { IsConstructor: true, IsPublic: true, IsStatic: false }))
+            {
+                CollectAssignments(constructor, type, assigned, visited);
+            }
+
+            foreach (var property in type.Properties.Where(property => property.GetMethod is { IsPublic: true, IsStatic: false }))
+            {
+                var storage = new HashSet<string>(StringComparer.Ordinal) { $"<{property.Name}>k__BackingField" };
+                storage.UnionWith(FieldsRead(property.GetMethod));
+                if (!storage.Overlaps(assigned) && (property.SetMethod is null || !assigned.Contains(property.SetMethod.Name)))
+                {
+                    violations.Add($"{type.FullName}.{property.Name} is not set by its constructor");
+                }
+            }
         }
 
-        return properties.Where(property => !set.Contains(property.Name))
-            .Select(property => $"{type.FullName}.{property.Name} is not set by its constructor");
+        return violations;
     }
 
-    private static bool IsDefault(object? value) =>
-        value is null || (value.GetType().IsValueType && value.Equals(Activator.CreateInstance(value.GetType())));
-
-    /// <summary>A value of <paramref name="type"/> that differs from its default.</summary>
-    private static object? SampleValue(Type type, int depth)
+    private static void CollectAssignments(MethodDefinition method, TypeDefinition type, HashSet<string> assigned, HashSet<MethodDefinition> visited)
     {
-        var underlying = Nullable.GetUnderlyingType(type) ?? type;
-        if (underlying == typeof(string))
+        if (!method.HasBody || !visited.Add(method))
         {
-            return "sample";
+            return;
         }
 
-        if (underlying == typeof(Guid))
+        foreach (var instruction in method.Body.Instructions)
         {
-            return Guid.NewGuid();
+            if (instruction.OpCode == OpCodes.Stfld && instruction.Operand is FieldReference field && field.DeclaringType.FullName == type.FullName)
+            {
+                assigned.Add(field.Name);
+            }
+            else if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt)
+                && instruction.Operand is MethodReference called && called.DeclaringType.FullName == type.FullName
+                && called.Resolve() is { } target)
+            {
+                if (target.IsConstructor)
+                {
+                    CollectAssignments(target, type, assigned, visited);
+                }
+                else if (target.IsSetter)
+                {
+                    assigned.Add(target.Name);
+                }
+            }
         }
-
-        if (underlying == typeof(bool))
-        {
-            return true;
-        }
-
-        if (underlying == typeof(DateTimeOffset))
-        {
-            return new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
-        }
-
-        if (underlying == typeof(TimeSpan))
-        {
-            return TimeSpan.FromMinutes(1);
-        }
-
-        if (underlying.IsEnum)
-        {
-            var values = System.Enum.GetValues(underlying);
-            return values.Length > 1 ? values.GetValue(1) : System.Enum.ToObject(underlying, 1);
-        }
-
-        if (underlying.IsPrimitive || underlying == typeof(decimal))
-        {
-            return Convert.ChangeType(1, underlying, System.Globalization.CultureInfo.InvariantCulture);
-        }
-
-        if (underlying.IsArray)
-        {
-            var element = underlying.GetElementType()!;
-            var array = Array.CreateInstance(element, 1);
-            array.SetValue(SampleValue(element, depth + 1), 0);
-            return array;
-        }
-
-        if (underlying.IsGenericType && underlying.GetGenericArguments() is [var item]
-            && underlying.IsAssignableFrom(item.MakeArrayType()))
-        {
-            return SampleValue(item.MakeArrayType(), depth + 1);
-        }
-
-        var constructor = underlying.GetConstructors().MaxBy(c => c.GetParameters().Length);
-        return depth < 3 && constructor is not null
-            ? constructor.Invoke([.. constructor.GetParameters().Select(p => SampleValue(p.ParameterType, depth + 1))])
-            : null;
     }
+
+    private static IEnumerable<string> FieldsRead(MethodDefinition getter) =>
+        getter.HasBody
+            ? getter.Body.Instructions
+                .Where(instruction => instruction.OpCode == OpCodes.Ldfld && instruction.Operand is FieldReference)
+                .Select(instruction => ((FieldReference)instruction.Operand).Name)
+            : [];
 }
