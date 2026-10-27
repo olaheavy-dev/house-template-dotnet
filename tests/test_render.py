@@ -44,6 +44,12 @@ def test_logs_are_json_lines_outside_development(render):
     assert development["FormatterName"] == "simple"
 
 
+def test_telemetry_names_the_service_after_the_project(render):
+    # Codex review on PR 7: without a name, every app exports as unknown_service:dotnet.
+    settings = json.loads((render() / "backend/src/Api/Api/appsettings.json").read_text())
+    assert settings["OpenTelemetry"]["ServiceName"] == "demo-app-api"
+
+
 def test_the_access_log_is_on_in_the_settings(render):
     levels = json.loads((render() / "backend/src/Api/Api/appsettings.json").read_text())["Logging"]["LogLevel"]
     assert levels["Microsoft.AspNetCore.HttpLogging.HttpLoggingMiddleware"] == "Information"

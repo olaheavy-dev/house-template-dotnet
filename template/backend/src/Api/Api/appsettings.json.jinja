@@ -2,6 +2,9 @@
   "Api": {
     "Title": {{ api_title | tojson }}
   },
+  "OpenTelemetry": {
+    "ServiceName": {{ (_external_data.base.project_slug ~ '-api') | tojson }}
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",

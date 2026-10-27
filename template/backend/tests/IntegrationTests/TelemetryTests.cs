@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry;
 using OpenTelemetry.Trace;
 
 namespace IntegrationTests;
@@ -35,6 +36,44 @@ public sealed class TelemetryTests
 
         Assert.That(await Eventually(() => spans.ToArray().Length > 0), Is.True);
         Assert.That(spans.Select(span => span.GetTagItem("url.path")), Is.EqualTo(new[] { "/marker" }));
+    }
+
+    [Test]
+    public async Task The_service_is_named_after_the_app_when_nothing_names_it()
+    {
+        // Codex review on PR 7: the SDK alone names it unknown_service:dotnet, like every other app.
+        // A generated project's appsettings.json names it; blank that out.
+        var settings = new Dictionary<string, string> { ["OpenTelemetry:ServiceName"] = "" };
+
+        Assert.That(await ServiceNameWith(settings), Is.EqualTo("Api"));
+    }
+
+    [Test]
+    public async Task The_settings_name_the_service()
+    {
+        var settings = new Dictionary<string, string> { ["OpenTelemetry:ServiceName"] = "demo-app-api" };
+
+        Assert.That(await ServiceNameWith(settings), Is.EqualTo("demo-app-api"));
+    }
+
+    [Test]
+    public async Task OTEL_SERVICE_NAME_wins_over_the_settings()
+    {
+        var settings = new Dictionary<string, string>
+        {
+            ["OpenTelemetry:ServiceName"] = "demo-app-api",
+            ["OTEL_SERVICE_NAME"] = "demo-app-api-eu",
+        };
+
+        Assert.That(await ServiceNameWith(settings), Is.EqualTo("demo-app-api-eu"));
+    }
+
+    private static async Task<object?> ServiceNameWith(IReadOnlyDictionary<string, string> settings)
+    {
+        await using var api = new TestApi(_ => { }, settings: settings);
+        using var client = api.CreateClient();
+        var resource = api.Services.GetRequiredService<TracerProvider>().GetResource();
+        return resource.Attributes.Single(attribute => attribute.Key == "service.name").Value;
     }
 
     private static TestApi TracedApi(List<Activity> spans) =>

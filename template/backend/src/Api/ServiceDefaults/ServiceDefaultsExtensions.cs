@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace ServiceDefaults;
@@ -45,7 +46,9 @@ public static class ServiceDefaultsExtensions
     /// <summary>
     /// Traces, metrics and logs through OpenTelemetry. Nothing leaves the process unless
     /// OTEL_EXPORTER_OTLP_ENDPOINT is set (the Aspire dashboard locally, LangSmith or any OTLP
-    /// collector in production); OTEL_SERVICE_NAME names the service, the app's name otherwise.
+    /// collector in production). The service is named by OTEL_SERVICE_NAME, else
+    /// OpenTelemetry:ServiceName (the project's slug, from appsettings.json), else the app's name;
+    /// the SDK alone would call it unknown_service:dotnet, the same as every other app.
     /// </summary>
     private static void AddTelemetry(this IHostApplicationBuilder builder)
     {
@@ -55,7 +58,14 @@ public static class ServiceDefaultsExtensions
             logging.IncludeScopes = true;
         });
 
+        var serviceName = new[]
+            {
+                builder.Configuration["OTEL_SERVICE_NAME"],
+                builder.Configuration["OpenTelemetry:ServiceName"],
+            }.FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)) ?? builder.Environment.ApplicationName;
+
         var telemetry = builder.Services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource.AddService(serviceName))
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()

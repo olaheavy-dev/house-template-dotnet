@@ -7,9 +7,13 @@ namespace IntegrationTests;
 
 /// <summary>
 /// The API in memory, with <paramref name="configure"/> changing its services after the app's own.
-/// WebApplicationFactory runs it as Development unless <paramref name="environment"/> says otherwise.
+/// WebApplicationFactory runs it as Development unless <paramref name="environment"/> says otherwise;
+/// <paramref name="settings"/> are configuration values, as if from the environment.
 /// </summary>
-internal sealed class TestApi(Action<IServiceCollection> configure, string? environment = null) : WebApplicationFactory<Program>
+internal sealed class TestApi(
+    Action<IServiceCollection> configure,
+    string? environment = null,
+    IReadOnlyDictionary<string, string>? settings = null) : WebApplicationFactory<Program>
 {
     public TestApi(string environment)
         : this(_ => { }, environment)
@@ -21,6 +25,11 @@ internal sealed class TestApi(Action<IServiceCollection> configure, string? envi
         if (environment is not null)
         {
             builder.UseEnvironment(environment);
+        }
+
+        foreach (var (key, value) in settings ?? new Dictionary<string, string>())
+        {
+            builder.UseSetting(key, value);
         }
 
         builder.ConfigureTestServices(configure);
