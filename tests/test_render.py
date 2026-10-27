@@ -35,6 +35,14 @@ def test_the_api_title_reaches_the_hosts_settings(render):
     assert settings["Api"]["Title"] == "Course Lens API"
 
 
+@pytest.mark.parametrize("title", ['Acme "Public" API', "Back\\slash API", "Tab\tAPI"])
+def test_any_title_stays_valid_json_in_the_settings(render, title):
+    # Codex review on PR 2: a quote or backslash in the title broke appsettings.json, so the API
+    # couldn't start.
+    settings = json.loads((render(api_title=title) / "backend/src/Api/Api/appsettings.json").read_text())
+    assert settings["Api"]["Title"] == title
+
+
 def test_layer_refuses_a_project_without_base_answers(render, project):
     with pytest.raises(REFUSED):
         render(project(base=None))
