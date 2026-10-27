@@ -57,6 +57,28 @@ namespace Modules.Beta.IntegrationEvents
 
         public string? Email { get; init; }
     }
+
+    // IntegrationEventsSetEveryProperty: a parameter with the property's name that is never assigned.
+    public sealed class RefundIssued
+    {
+        public RefundIssued(System.Guid refundId, string reason) { RefundId = refundId; }
+
+        public System.Guid RefundId { get; }
+
+        public string? Reason { get; }
+    }
+
+    // Not a violation: the property is assigned from a parameter with another name, through a chained constructor.
+    public sealed class CustomerMoved
+    {
+        public CustomerMoved(string newAddress) : this(newAddress, true) { }
+
+        private CustomerMoved(string address, bool confirmed) { Address = address; Confirmed = confirmed; }
+
+        public string Address { get; }
+
+        public bool Confirmed { get; }
+    }
 }
 
 namespace Common.Domain.Broken

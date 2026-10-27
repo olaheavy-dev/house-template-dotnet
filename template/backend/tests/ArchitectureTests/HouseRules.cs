@@ -128,19 +128,94 @@ public static partial class HouseRules
                 .Select(call => $"{type.FullName} calls {call.TargetMember.FullName}"))
             .Distinct()];
 
+    /// <summary>
+    /// Builds each integration event through its public constructors with non-default sample
+    /// arguments, then requires every public property to hold a value. Checking behaviour rather than
+    /// names covers chained constructors and parameters named differently from their property.
+    /// </summary>
     private static List<string> UnsetEventProperties(CheckedCode code) =>
         [.. code.Assemblies
             .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsClass: true, IsPublic: true, IsAbstract: false }
                 && IntegrationEventsNamespace().IsMatch(type.Namespace ?? string.Empty))
-            .SelectMany(type =>
-            {
-                var parameters = type.GetConstructors()
-                    .SelectMany(constructor => constructor.GetParameters())
-                    .Select(parameter => parameter.Name)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                return type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                    .Where(property => !parameters.Contains(property.Name))
-                    .Select(property => $"{type.FullName}.{property.Name} is set by no constructor");
-            })];
+            .SelectMany(UnsetProperties)];
+
+    private static IEnumerable<string> UnsetProperties(Type type)
+    {
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.GetIndexParameters().Length == 0)
+            .ToList();
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var constructor in type.GetConstructors())
+        {
+            var instance = constructor.Invoke([.. constructor.GetParameters().Select(p => SampleValue(p.ParameterType, 0))]);
+            set.UnionWith(properties.Where(property => !IsDefault(property.GetValue(instance))).Select(property => property.Name));
+        }
+
+        return properties.Where(property => !set.Contains(property.Name))
+            .Select(property => $"{type.FullName}.{property.Name} is not set by its constructor");
+    }
+
+    private static bool IsDefault(object? value) =>
+        value is null || (value.GetType().IsValueType && value.Equals(Activator.CreateInstance(value.GetType())));
+
+    /// <summary>A value of <paramref name="type"/> that differs from its default.</summary>
+    private static object? SampleValue(Type type, int depth)
+    {
+        var underlying = Nullable.GetUnderlyingType(type) ?? type;
+        if (underlying == typeof(string))
+        {
+            return "sample";
+        }
+
+        if (underlying == typeof(Guid))
+        {
+            return Guid.NewGuid();
+        }
+
+        if (underlying == typeof(bool))
+        {
+            return true;
+        }
+
+        if (underlying == typeof(DateTimeOffset))
+        {
+            return new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
+        }
+
+        if (underlying == typeof(TimeSpan))
+        {
+            return TimeSpan.FromMinutes(1);
+        }
+
+        if (underlying.IsEnum)
+        {
+            var values = System.Enum.GetValues(underlying);
+            return values.Length > 1 ? values.GetValue(1) : System.Enum.ToObject(underlying, 1);
+        }
+
+        if (underlying.IsPrimitive || underlying == typeof(decimal))
+        {
+            return Convert.ChangeType(1, underlying, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (underlying.IsArray)
+        {
+            var element = underlying.GetElementType()!;
+            var array = Array.CreateInstance(element, 1);
+            array.SetValue(SampleValue(element, depth + 1), 0);
+            return array;
+        }
+
+        if (underlying.IsGenericType && underlying.GetGenericArguments() is [var item]
+            && underlying.IsAssignableFrom(item.MakeArrayType()))
+        {
+            return SampleValue(item.MakeArrayType(), depth + 1);
+        }
+
+        var constructor = underlying.GetConstructors().MaxBy(c => c.GetParameters().Length);
+        return depth < 3 && constructor is not null
+            ? constructor.Invoke([.. constructor.GetParameters().Select(p => SampleValue(p.ParameterType, depth + 1))])
+            : null;
+    }
 }

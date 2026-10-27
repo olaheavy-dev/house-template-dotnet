@@ -23,7 +23,7 @@ public sealed class RuleSelfTests
         ["ModulesAreIsolated"] = "Modules.Alpha.Application.OrderService depends on Modules.Beta.Domain.Invoice",
         ["HandlersAreNotPublic"] = "Modules.Alpha.Application.PublicHandler is a public handler",
         ["NoMachineClock"] = "Modules.Alpha.Application.OrderService calls System.DateTimeOffset System.DateTimeOffset::get_UtcNow()",
-        ["IntegrationEventsSetEveryProperty"] = "Modules.Beta.IntegrationEvents.InvoicePaid.Email is set by no constructor",
+        ["IntegrationEventsSetEveryProperty"] = "Modules.Beta.IntegrationEvents.InvoicePaid.Email is not set by its constructor",
     };
 
     [TestCaseSource(typeof(HouseRules), nameof(HouseRules.All))]
@@ -32,6 +32,20 @@ public sealed class RuleSelfTests
         ArgumentNullException.ThrowIfNull(rule);
         Assert.That(rule.Violations(Broken.Value), Does.Contain(Planted[rule.Name]));
     }
+
+    [Test]
+    public void An_event_property_named_like_a_parameter_but_never_assigned_is_found() =>
+        Assert.That(
+            Rule("IntegrationEventsSetEveryProperty").Violations(Broken.Value),
+            Does.Contain("Modules.Beta.IntegrationEvents.RefundIssued.Reason is not set by its constructor"));
+
+    [Test]
+    public void An_event_property_assigned_from_a_differently_named_parameter_passes() =>
+        Assert.That(
+            Rule("IntegrationEventsSetEveryProperty").Violations(Broken.Value),
+            Has.None.Contains("CustomerMoved"));
+
+    private static ArchitectureRule Rule(string name) => HouseRules.All.Single(rule => rule.Name == name);
 
     [Test]
     public void Every_rule_has_a_planted_violation() =>
