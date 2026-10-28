@@ -20,7 +20,7 @@ internal sealed partial class GetNote(INoteReader notes, HybridCache cache)
     private async ValueTask<ErrorOr<NoteResponse>> HandleAsync(GetNoteQuery query, CancellationToken cancellationToken)
     {
         // The key says what is cached, not who asked: the owner check below is made on every read.
-        var key = $"platform:note:{query.Id}";
+        var key = NoteCache.KeyFor(query.Id);
         var note = await cache.GetOrCreateAsync(
             key,
             async token =>
