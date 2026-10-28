@@ -21,12 +21,13 @@ public sealed class NoteHandlerTests
     public void SetUp()
     {
         _store = new InMemoryNoteStore();
-        _services = new ServiceCollection()
+        var services = new ServiceCollection()
             .AddLogging()
             .AddSingleton(TimeProvider.System)
             .AddPlatformModule(new ConfigurationBuilder().Build())
-            .AddSingleton<INoteStore>(_store)
-            .BuildServiceProvider();
+            .AddSingleton<INoteStore>(_store);
+        services.AddHybridCache();
+        _services = services.BuildServiceProvider();
     }
 
     [TearDown]
@@ -145,6 +146,53 @@ public sealed class NoteHandlerTests
         Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.Validation));
     }
 
+    [Test]
+    public async Task Get_reads_the_store_once_however_often_the_note_is_read()
+    {
+        var created = (await Create("alice", "buy milk")).Value;
+
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.That((await Get("alice", created.Id)).Value.Text, Is.EqualTo("buy milk"));
+        }
+
+        Assert.That(_store.FindCalls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Get_shares_one_trip_to_the_store_between_reads_that_arrive_together()
+    {
+        var created = (await Create("alice", "buy milk")).Value;
+        _store.HoldFinds();
+
+        var reads = Enumerable.Range(0, 10).Select(_ => Get("alice", created.Id).AsTask()).ToList();
+        await _store.FindStarted;
+        _store.ReleaseFinds();
+        var results = await Task.WhenAll(reads);
+
+        Assert.That(results.All(result => !result.IsError), Is.True);
+        Assert.That(_store.FindCalls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Get_still_checks_the_owner_when_the_note_is_cached()
+    {
+        var created = (await Create("alice", "buy milk")).Value;
+        await Get("alice", created.Id);
+
+        var result = await Get("bob", created.Id);
+
+        Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.NotFound));
+    }
+
+    [Test]
+    public async Task Get_reports_a_missing_note_as_not_found()
+    {
+        var result = await Get("alice", Guid.CreateVersion7());
+
+        Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.NotFound));
+    }
+
     private ValueTask<ErrorOr<Page<NoteResponse>>> List(string owner, PageRequest page) =>
         _services.GetRequiredService<IHandler<ListNotesQuery, ErrorOr<Page<NoteResponse>>>>()
             .HandleAsync(new ListNotesQuery(owner, page), CancellationToken.None);
@@ -161,6 +209,10 @@ public sealed class NoteHandlerTests
     {
         public List<Note> Notes { get; } = [];
 
+        private readonly TaskCompletionSource _findStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource? _hold;
+        private int _findCalls;
+
         public List<object> Published { get; } = [];
 
         public int Saved { get; private set; }
@@ -171,8 +223,25 @@ public sealed class NoteHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task<Note?> FindAsync(Guid id, CancellationToken cancellationToken) =>
-            Task.FromResult(Notes.FirstOrDefault(note => note.Id == id));
+        public int FindCalls => _findCalls;
+
+        public Task FindStarted => _findStarted.Task;
+
+        public void HoldFinds() => _hold = new TaskCompletionSource();
+
+        public void ReleaseFinds() => _hold?.SetResult();
+
+        public async Task<Note?> FindAsync(Guid id, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _findCalls);
+            _findStarted.TrySetResult();
+            if (_hold is { } hold)
+            {
+                await hold.Task;
+            }
+
+            return Notes.FirstOrDefault(note => note.Id == id);
+        }
 
         public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
             where TEvent : class
