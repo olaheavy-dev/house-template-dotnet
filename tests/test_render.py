@@ -266,6 +266,16 @@ def test_the_compiler_reference_does_not_make_the_lock_file_depend_on_the_config
     assert "--configuration Release -p:RestoreLockedMode=true" in check
 
 
+def test_every_skills_frontmatter_is_valid_yaml_with_a_name_and_description(render):
+    skills = sorted((render() / ".claude/skills").glob("*/SKILL.md"))
+    assert {skill.parent.name for skill in skills} >= {"add-module", "add-endpoint"}
+    for skill in skills:
+        _, frontmatter, _ = skill.read_text().split("---\n", 2)
+        meta = yaml.safe_load(frontmatter)
+        assert meta["name"] == skill.parent.name, skill
+        assert isinstance(meta["description"], str) and meta["description"], skill
+
+
 def test_the_add_endpoint_skill_names_files_and_commands_that_exist(render):
     project = render()
     skill = (project / ".claude/skills/add-endpoint/SKILL.md").read_text()

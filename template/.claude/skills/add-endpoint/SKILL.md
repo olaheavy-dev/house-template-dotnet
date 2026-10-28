@@ -1,6 +1,6 @@
 ---
 name: add-endpoint
-description: Add an API endpoint to a backend module: handler, validator, store method, route, permission, tests and the OpenAPI document. Use for any new route (a read, a write, a list) in an existing module; use add-module first when the feature needs a module of its own.
+description: "Add an API endpoint to a backend module: handler, validator, store method, route, permission, tests and the OpenAPI document. Use for any new route (a read, a write, a list) in an existing module; use add-module first when the feature needs a module of its own."
 ---
 
 # Add an endpoint
