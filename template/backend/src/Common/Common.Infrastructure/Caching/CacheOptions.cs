@@ -14,13 +14,20 @@ public sealed class CacheOptions
     [Range(1, 1440)]
     public int ExpirationMinutes { get; init; } = 5;
 
-    /// <summary>How long an instance keeps an entry in its own memory; shorter than <see cref="ExpirationMinutes"/> so instances see each other's changes.</summary>
+    /// <summary>How long an instance keeps an entry in its own memory. There is no cross-instance invalidation, so this is how long another instance can serve an entry that was removed or changed elsewhere.</summary>
     [Range(1, 1440)]
     public int LocalExpirationMinutes { get; init; } = 1;
 
-    /// <summary>The largest entry kept, in bytes; bigger ones are fetched every time.</summary>
+    /// <summary>The largest entry written to the shared cache, in bytes; bigger ones stay in the instance's memory only. Without a shared cache nothing is serialized, so it does not apply.</summary>
     [Range(1024, 104_857_600)]
     public int MaximumPayloadBytes { get; init; } = 1_048_576;
+
+    /// <summary>
+    /// How long a request waits for the shared cache (connecting, reading, writing) before it carries on without it.
+    /// A cache that is down must cost a request milliseconds, not the library's default of seconds.
+    /// </summary>
+    [Range(50, 10_000)]
+    public int SharedTimeoutMilliseconds { get; init; } = 100;
 
     /// <summary>Prefix for the keys this app writes to a shared cache, so apps sharing one server do not meet.</summary>
     [Required]

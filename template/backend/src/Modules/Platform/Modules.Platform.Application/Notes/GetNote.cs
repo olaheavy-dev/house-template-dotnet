@@ -18,14 +18,22 @@ internal sealed partial class GetNote(INoteStore notes, HybridCache cache)
     private async ValueTask<ErrorOr<NoteResponse>> HandleAsync(GetNoteQuery query, CancellationToken cancellationToken)
     {
         // The key says what is cached, not who asked: the owner check below is made on every read.
+        var key = $"platform:note:{query.Id}";
         var note = await cache.GetOrCreateAsync(
-            $"platform:note:{query.Id}",
+            key,
             async token =>
             {
                 var stored = await notes.FindAsync(query.Id, token);
                 return stored is null ? null : new CachedNote(stored.Id, stored.OwnerId, stored.Text, stored.CreatedAt, stored.UpdatedAt);
             },
             cancellationToken: cancellationToken);
+
+        // A miss is not worth remembering: the note may be there a moment later, and the cache would hide it
+        // until the entry expired. Reads that arrived together still shared the one trip to the store.
+        if (note is null)
+        {
+            await cache.RemoveAsync(key, cancellationToken);
+        }
 
         // Someone else's note is reported as missing, so ids can't be probed.
         return note is null || note.OwnerId != query.OwnerId
