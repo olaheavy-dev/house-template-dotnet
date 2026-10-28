@@ -37,6 +37,9 @@
           "Common.Domain": "[1.0.0, )"
         }
       },
+      "modules.platform.integrationevents": {
+        "type": "Project"
+      },
       "ErrorOr": {
         "type": "CentralTransitive",
         "requested": "[2.1.1, )",

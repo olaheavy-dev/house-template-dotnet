@@ -41,6 +41,10 @@ public static partial class HouseRules
             "Endpoints go through handlers, never around them to storage.",
             code => Dependencies(code, Layer("Presentation"), target => InfrastructureLayer().IsMatch(target))),
         new(
+            "ModulesDoNotUseTheMessagingLibrary",
+            "Modules publish through IUnitOfWork and subscribe by convention; only the shared kernel and the host know the messaging library, so it can be replaced.",
+            code => Dependencies(code, ModuleNamespace(), target => MessagingLibrary().IsMatch(target))),
+        new(
             "SharedKernelDependsOnNoModule",
             "Common is shared by every module, so it can't depend on any of them.",
             code => Dependencies(code, SharedKernel(), target => ModuleNamespace().IsMatch(target))),
@@ -79,6 +83,9 @@ public static partial class HouseRules
 
     [GeneratedRegex(@"^Microsoft\.(AspNetCore|EntityFrameworkCore)\.")]
     private static partial Regex AspNetCoreOrEf();
+
+    [GeneratedRegex(@"^Wolverine(\.|$)")]
+    private static partial Regex MessagingLibrary();
 
     [GeneratedRegex(@"^Common\.")]
     private static partial Regex SharedKernel();

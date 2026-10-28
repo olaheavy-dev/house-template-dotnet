@@ -2,6 +2,7 @@ using ErrorOr;
 using FluentValidation;
 using Immediate.Handlers.Shared;
 using Modules.Platform.Domain;
+using Modules.Platform.IntegrationEvents;
 
 namespace Modules.Platform.Application.Notes;
 
@@ -34,6 +35,8 @@ internal sealed partial class CreateNote(INoteStore notes, TimeProvider clock)
         }
 
         await notes.AddAsync(created.Value, cancellationToken);
+        // Stored with the note, delivered once it is committed.
+        await notes.PublishAsync(new NoteCreated(created.Value.Id, created.Value.OwnerId, clock.GetUtcNow()), cancellationToken);
         await notes.SaveChangesAsync(cancellationToken);
         return NoteResponse.From(created.Value);
     }

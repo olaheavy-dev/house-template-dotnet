@@ -19,6 +19,7 @@ public sealed class RuleSelfTests
         ["DomainDependsOnNoOuterLayer"] = "Modules.Alpha.Domain.Order depends on Modules.Alpha.Application.OrderService",
         ["ApplicationDependsOnNoOuterLayer"] = "Modules.Alpha.Application.Saver depends on Modules.Alpha.Infrastructure.Repository",
         ["PresentationDependsOnNoInfrastructure"] = "Modules.Alpha.Presentation.Endpoint depends on Modules.Alpha.Infrastructure.Repository",
+        ["ModulesDoNotUseTheMessagingLibrary"] = "Modules.Alpha.Infrastructure.Bus depends on Wolverine.IMessageBus",
         ["SharedKernelDependsOnNoModule"] = "Common.Domain.Broken.Leak depends on Modules.Beta.Domain.Invoice",
         ["ModulesAreIsolated"] = "Modules.Alpha.Application.OrderService depends on Modules.Beta.Domain.Invoice",
         ["HandlersAreNotPublic"] = "Modules.Alpha.Application.PublicHandler is a public handler",

@@ -1,3 +1,4 @@
+using Common.Infrastructure.Messaging;
 using Common.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -19,6 +20,7 @@ public static class PlatformModule
         services.AddModuleDbContext<PlatformDbContext>(configuration, PlatformDbContext.Schema);
         services.AddScoped<INoteStore, NoteStore>();
         services.AddScoped<IDataSeeder, PlatformSeeder>();
+        services.AddIntegrationEventSubscribers(AssemblyReference.Assembly);
         services.AddValidatorsFromAssembly(Application.AssemblyReference.Assembly, includeInternalTypes: true);
         return services.AddModulesPlatformApplicationHandlers();
     }

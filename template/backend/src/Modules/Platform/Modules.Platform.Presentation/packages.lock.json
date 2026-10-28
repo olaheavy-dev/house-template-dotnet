@@ -48,7 +48,8 @@
         "dependencies": {
           "Common.Application": "[1.0.0, )",
           "Immediate.Handlers": "[4.2.0, )",
-          "Modules.Platform.Domain": "[1.0.0, )"
+          "Modules.Platform.Domain": "[1.0.0, )",
+          "Modules.Platform.IntegrationEvents": "[1.0.0, )"
         }
       },
       "modules.platform.domain": {
@@ -56,6 +57,9 @@
         "dependencies": {
           "Common.Domain": "[1.0.0, )"
         }
+      },
+      "modules.platform.integrationevents": {
+        "type": "Project"
       },
       "ErrorOr": {
         "type": "CentralTransitive",

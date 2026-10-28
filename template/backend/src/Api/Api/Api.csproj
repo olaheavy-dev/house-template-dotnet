@@ -37,6 +37,9 @@
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
     <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" />
     <PackageReference Include="Scalar.AspNetCore" />
+    <!-- Writes the messaging glue code (make codegen) and lets Development generate it on the fly; Release builds
+         compile the committed code instead and ship no compiler. -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" Condition="'$(Configuration)' == 'Debug'" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Common\Common.Infrastructure\Common.Infrastructure.csproj" />

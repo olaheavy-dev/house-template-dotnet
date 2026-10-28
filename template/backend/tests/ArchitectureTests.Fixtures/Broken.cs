@@ -40,6 +40,9 @@ namespace Modules.Alpha.Presentation
 
 namespace Modules.Alpha.Infrastructure
 {
+    // ModulesDoNotUseTheMessagingLibrary: a module publishing around the unit of work.
+    public sealed class Bus { public Wolverine.IMessageBus? Messages; }
+
     public sealed class Repository;
 }
 

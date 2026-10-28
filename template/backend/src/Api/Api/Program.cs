@@ -1,7 +1,9 @@
 using Api;
 using Common.Infrastructure;
+using Common.Infrastructure.Messaging;
 using Common.Infrastructure.Persistence;
 using Common.Presentation;
+using JasperFx;
 using Modules.Platform.Infrastructure;
 using Modules.Platform.Presentation;
 using Scalar.AspNetCore;
@@ -10,6 +12,7 @@ using ServiceDefaults;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddMessaging(typeof(Program).Assembly);
 builder.Services.AddCommon();
 builder.Services.AddApiProblemDetails();
 builder.Services.AddApiOpenApi(builder.Configuration);
@@ -30,7 +33,7 @@ if (args is ["seed"])
     }
 
     await app.Services.RunSeedersAsync(CancellationToken.None);
-    return;
+    return 0;
 }
 
 app.UseServiceDefaults();
@@ -52,4 +55,11 @@ app.MapHealthEndpoints();
 app.MapPlatformEndpoints();
 // make module: endpoints
 
+// `dotnet run -- codegen write` (make codegen) and the other messaging commands; anything else runs the API.
+if (args is ["codegen" or "resources" or "describe", ..])
+{
+    return await app.RunJasperFxCommands(args);
+}
+
 await app.RunAsync();
+return 0;

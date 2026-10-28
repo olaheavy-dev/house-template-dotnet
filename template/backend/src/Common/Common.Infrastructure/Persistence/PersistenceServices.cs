@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Wolverine.EntityFrameworkCore;
 
 namespace Common.Infrastructure.Persistence;
 
@@ -21,7 +22,8 @@ public static class PersistenceServices
         ArgumentNullException.ThrowIfNull(configuration);
         services.AddSingleton<AuditInterceptor>();
         services.AddSingleton(new ModuleDatabase(typeof(TContext)));
-        services.AddDbContext<TContext>((provider, options) => options
+        services.AddScoped<ModuleOutbox<TContext>>();
+        services.AddDbContextWithWolverineIntegration<TContext>((provider, options) => options
             .UseNpgsql(
                 configuration.GetConnectionString(ConnectionName),
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations", schema))

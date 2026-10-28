@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Modules.Platform.Application.Notes;
 using Modules.Platform.Domain;
 using Modules.Platform.Infrastructure;
+using Modules.Platform.IntegrationEvents;
 
 namespace Modules.Platform.UnitTests;
 
@@ -34,6 +35,9 @@ public sealed class NoteHandlerTests
         Assert.That(result.IsError, Is.False);
         Assert.That(_store.Saved, Is.EqualTo(1));
         Assert.That(_store.Notes.Single().OwnerId, Is.EqualTo("alice"));
+        var published = (NoteCreated)_store.Published.Single();
+        Assert.That(published.NoteId, Is.EqualTo(result.Value.Id));
+        Assert.That(published.OwnerId, Is.EqualTo("alice"));
     }
 
     [Test]
@@ -43,6 +47,7 @@ public sealed class NoteHandlerTests
 
         Assert.That(result.IsError, Is.True);
         Assert.That(_store.Saved, Is.Zero);
+        Assert.That(_store.Published, Is.Empty);
     }
 
     [Test]
@@ -86,6 +91,8 @@ public sealed class NoteHandlerTests
     {
         public List<Note> Notes { get; } = [];
 
+        public List<object> Published { get; } = [];
+
         public int Saved { get; private set; }
 
         public Task AddAsync(Note note, CancellationToken cancellationToken)
@@ -96,6 +103,13 @@ public sealed class NoteHandlerTests
 
         public Task<Note?> FindAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(Notes.FirstOrDefault(note => note.Id == id));
+
+        public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
+            where TEvent : class
+        {
+            Published.Add(integrationEvent);
+            return ValueTask.CompletedTask;
+        }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken)
         {
