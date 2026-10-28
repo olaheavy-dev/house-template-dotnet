@@ -10,10 +10,12 @@ public sealed record GetNoteQuery(string OwnerId, Guid Id);
 /// One note by id, through the cache: the first read of an id goes to the store, the rest are answered from
 /// memory (and from the shared cache, when there is one) until the entry expires, and concurrent first reads
 /// share one trip to the store. Notes never change, so expiry is all it needs; a handler that changes what
-/// it caches calls <c>cache.RemoveAsync(key)</c> (or <c>RemoveByTagAsync</c>) after it saves.
+/// it caches calls <c>cache.RemoveAsync(key)</c> (or <c>RemoveByTagAsync</c>) after it saves. The lookup runs once
+/// for every request waiting on a key and may outlive the request that started it, so it uses an
+/// <see cref="INoteReader"/> (its own scope), never the request's store.
 /// </summary>
 [Handler]
-internal sealed partial class GetNote(INoteStore notes, HybridCache cache)
+internal sealed partial class GetNote(INoteReader notes, HybridCache cache)
 {
     private async ValueTask<ErrorOr<NoteResponse>> HandleAsync(GetNoteQuery query, CancellationToken cancellationToken)
     {

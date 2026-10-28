@@ -56,6 +56,36 @@ public sealed class CacheTests
     }
 
     [Test]
+    public async Task A_request_that_gives_up_does_not_fail_the_one_waiting_on_the_same_lookup()
+    {
+        await using var api = new TestApi(_ => { });
+        using var client = SignedIn(api, "cache-cancel");
+
+        // Pairs of reads of the same cold note, the first abandoned straight away: however the lookup is shared,
+        // the one that stays must never see an error.
+        for (var round = 0; round < 25; round++)
+        {
+            var id = await CreateNote(client);
+            var uri = new Uri($"/v1/platform/notes/{id}", UriKind.Relative);
+            using var impatient = new CancellationTokenSource();
+            var abandoned = client.GetAsync(uri, impatient.Token);
+            var staying = client.GetAsync(uri);
+            await impatient.CancelAsync();
+            try
+            {
+                using var ignored = await abandoned;
+            }
+            catch (OperationCanceledException)
+            {
+                // The caller that gave up sees its own cancellation.
+            }
+
+            using var response = await staying;
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"round {round}");
+        }
+    }
+
+    [Test]
     public async Task A_note_that_was_not_there_is_not_remembered_as_missing()
     {
         await using var valkey = await StartValkey();
