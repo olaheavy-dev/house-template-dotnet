@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Common.Application.Paging;
 using Common.Presentation;
+using Common.Presentation.Idempotency;
 using ErrorOr;
 using Immediate.Handlers.Shared;
 using JetBrains.Annotations;
@@ -32,6 +33,7 @@ internal static class NotesEndpoint
                     await handler.HandleAsync(new CreateNoteCommand(OwnerOf(user), request.Text), cancellationToken),
                     note => $"/v1/platform/notes/{note.Id}"))
             .RequirePermission(PlatformPermissions.WriteNotes)
+            .WithIdempotencyKey()
             .WithName("CreateNote")
             .WithTags("Notes")
             .Produces<NoteResponse>(StatusCodes.Status201Created)
