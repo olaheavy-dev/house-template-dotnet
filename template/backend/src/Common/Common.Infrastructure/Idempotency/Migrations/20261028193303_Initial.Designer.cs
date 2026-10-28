@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Common.Infrastructure.Idempotency.Migrations
 {
     [DbContext(typeof(CommonDbContext))]
-    [Migration("20261028183025_Initial")]
+    [Migration("20261028193303_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -29,8 +29,8 @@ namespace Common.Infrastructure.Idempotency.Migrations
             modelBuilder.Entity("Common.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Scope")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("Key")
                         .HasMaxLength(255)
@@ -38,6 +38,9 @@ namespace Common.Infrastructure.Idempotency.Migrations
 
                     b.Property<byte[]>("Body")
                         .HasColumnType("bytea");
+
+                    b.Property<Guid>("ClaimToken")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ContentType")
                         .HasMaxLength(200)

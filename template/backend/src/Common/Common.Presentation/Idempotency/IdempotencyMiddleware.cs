@@ -85,10 +85,10 @@ internal sealed class IdempotencyMiddleware(RequestDelegate next, IOptions<Idemp
                 return;
         }
 
-        await RunAndRememberAsync(context, store, scope, key!);
+        await RunAndRememberAsync(context, store, scope, key!, begin.Claim!.Value);
     }
 
-    private async Task RunAndRememberAsync(HttpContext context, IIdempotencyStore store, string scope, string key)
+    private async Task RunAndRememberAsync(HttpContext context, IIdempotencyStore store, string scope, string key, Guid claim)
     {
         var original = context.Response.Body;
         await using var captured = new MemoryStream();
@@ -100,7 +100,7 @@ internal sealed class IdempotencyMiddleware(RequestDelegate next, IOptions<Idemp
         catch
         {
             context.Response.Body = original;
-            await store.AbandonAsync(scope, key, CancellationToken.None);
+            await store.AbandonAsync(scope, key, claim, CancellationToken.None);
             throw;
         }
 
@@ -109,13 +109,14 @@ internal sealed class IdempotencyMiddleware(RequestDelegate next, IOptions<Idemp
         // A server error says nothing about the request: let a retry run it again, as it must be able to.
         if (status >= StatusCodes.Status500InternalServerError || captured.Length > _maxResponseBytes)
         {
-            await store.AbandonAsync(scope, key, CancellationToken.None);
+            await store.AbandonAsync(scope, key, claim, CancellationToken.None);
         }
         else
         {
             await store.CompleteAsync(
                 scope,
                 key,
+                claim,
                 new StoredResponse(status, context.Response.ContentType, context.Response.Headers.Location.ToString() is { Length: > 0 } location ? location : null, captured.ToArray()),
                 CancellationToken.None);
         }

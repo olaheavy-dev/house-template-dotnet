@@ -18,7 +18,8 @@ public sealed class CommonDbContext(DbContextOptions<CommonDbContext> options) :
         {
             record.ToTable(Table);
             record.HasKey(entry => new { entry.Scope, entry.Key });
-            record.Property(entry => entry.Scope).HasMaxLength(200);
+            // "user:" or "address:" and then an id of up to 200 characters.
+            record.Property(entry => entry.Scope).HasMaxLength(256);
             record.Property(entry => entry.Key).HasMaxLength(255);
             record.Property(entry => entry.Fingerprint).HasMaxLength(64).IsRequired();
             record.Property(entry => entry.State).HasMaxLength(16).IsRequired();

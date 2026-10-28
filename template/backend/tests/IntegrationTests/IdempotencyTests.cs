@@ -215,24 +215,67 @@ public sealed class IdempotencyTests
         await using var api = new TestApi(_ => { });
         var key = Guid.NewGuid().ToString();
 
-        var attempts = new List<Task<IdempotencyOutcome>>();
+        var attempts = new List<Task<IdempotencyBegin>>();
         for (var i = 0; i < 8; i++)
         {
             attempts.Add(Begin(api, key));
         }
 
-        var outcomes = await Task.WhenAll(attempts);
+        var outcomes = (await Task.WhenAll(attempts)).Select(begin => begin.Outcome).ToList();
 
         Assert.That(outcomes.Count(outcome => outcome == IdempotencyOutcome.Started), Is.EqualTo(1));
         Assert.That(outcomes.Count(outcome => outcome == IdempotencyOutcome.InProgress), Is.EqualTo(7));
     }
 
-    private static async Task<IdempotencyOutcome> Begin(TestApi api, string key)
+    [Test]
+    public async Task A_user_with_the_longest_allowed_id_can_still_send_a_key()
+    {
+        await using var api = new TestApi(TestEndpoints.AddTo);
+        using var client = SignedIn(api, new string('u', 200));
+
+        using var response = await Post(client, Notes, Guid.NewGuid().ToString(), """{"text":"long id"}""");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+    }
+
+    [Test]
+    public async Task A_request_that_lost_its_hold_cannot_complete_or_abandon_the_one_that_took_over()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await using var api = new TestApi(services => services.AddSingleton<TimeProvider>(clock));
+        var key = Guid.NewGuid().ToString();
+        var first = await Begin(api, key);
+        clock.Advance(TimeSpan.FromSeconds(61));
+        var second = await Begin(api, key);
+
+        // The slow first request finishes late: neither its answer nor its failure may touch the retry's record.
+        await WithStore(api, store => store.CompleteAsync("scope", key, first.Claim!.Value, Answer("first"), CancellationToken.None));
+        Assert.That((await Begin(api, key)).Outcome, Is.EqualTo(IdempotencyOutcome.InProgress), "the late answer replaced the retry's record");
+        await WithStore(api, store => store.AbandonAsync("scope", key, first.Claim!.Value, CancellationToken.None));
+        Assert.That((await Begin(api, key)).Outcome, Is.EqualTo(IdempotencyOutcome.InProgress), "the late failure freed the key under the retry");
+
+        await WithStore(api, store => store.CompleteAsync("scope", key, second.Claim!.Value, Answer("second"), CancellationToken.None));
+        var replay = await Begin(api, key);
+        Assert.That(first.Outcome, Is.EqualTo(IdempotencyOutcome.Started));
+        Assert.That(second.Outcome, Is.EqualTo(IdempotencyOutcome.Started));
+        Assert.That(second.Claim, Is.Not.EqualTo(first.Claim));
+        Assert.That(replay.Outcome, Is.EqualTo(IdempotencyOutcome.Replay));
+        Assert.That(Encoding.UTF8.GetString(replay.Response!.Body.Span), Is.EqualTo("second"));
+    }
+
+    private static StoredResponse Answer(string body) => new(200, "text/plain", null, Encoding.UTF8.GetBytes(body));
+
+    private static async Task<IdempotencyBegin> Begin(TestApi api, string key)
     {
         await Task.Yield();
         await using var scope = api.Services.CreateAsyncScope();
-        var begin = await scope.ServiceProvider.GetRequiredService<IIdempotencyStore>().BeginAsync("scope", key, "fingerprint", CancellationToken.None);
-        return begin.Outcome;
+        return await scope.ServiceProvider.GetRequiredService<IIdempotencyStore>().BeginAsync("scope", key, "fingerprint", CancellationToken.None);
+    }
+
+    private static async Task WithStore(TestApi api, Func<IIdempotencyStore, Task> action)
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        await action(scope.ServiceProvider.GetRequiredService<IIdempotencyStore>());
     }
 
     private static HttpClient SignedIn(TestApi api, string user)

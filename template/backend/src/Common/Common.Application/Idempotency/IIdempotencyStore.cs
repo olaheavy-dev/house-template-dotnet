@@ -18,7 +18,10 @@ public enum IdempotencyOutcome
     Mismatch,
 }
 
-public sealed record IdempotencyBegin(IdempotencyOutcome Outcome, StoredResponse? Response = null);
+/// <param name="Outcome">What to do with the request.</param>
+/// <param name="Response">For <see cref="IdempotencyOutcome.Replay"/>: the response to send again.</param>
+/// <param name="Claim">For <see cref="IdempotencyOutcome.Started"/>: proof that this request holds the key. Only the holder can complete or abandon it, so a slow first attempt cannot disturb the retry that took over from it.</param>
+public sealed record IdempotencyBegin(IdempotencyOutcome Outcome, StoredResponse? Response = null, Guid? Claim = null);
 
 /// <summary>
 /// Remembers requests by <c>Idempotency-Key</c> so a client can retry a POST without doing it twice.
@@ -28,9 +31,9 @@ public interface IIdempotencyStore
 {
     Task<IdempotencyBegin> BeginAsync(string scope, string key, string fingerprint, CancellationToken cancellationToken);
 
-    /// <summary>Keeps the response for replays until the key expires.</summary>
-    Task CompleteAsync(string scope, string key, StoredResponse response, CancellationToken cancellationToken);
+    /// <summary>Keeps the response for replays until the key expires. Does nothing unless <paramref name="claim"/> still holds the key.</summary>
+    Task CompleteAsync(string scope, string key, Guid claim, StoredResponse response, CancellationToken cancellationToken);
 
-    /// <summary>Forgets a started request that failed, so a retry runs it again.</summary>
-    Task AbandonAsync(string scope, string key, CancellationToken cancellationToken);
+    /// <summary>Forgets a started request that failed, so a retry runs it again. Does nothing unless <paramref name="claim"/> still holds the key.</summary>
+    Task AbandonAsync(string scope, string key, Guid claim, CancellationToken cancellationToken);
 }

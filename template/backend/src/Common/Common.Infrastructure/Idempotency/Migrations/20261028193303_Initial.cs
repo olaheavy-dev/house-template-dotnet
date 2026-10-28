@@ -19,10 +19,11 @@ namespace Common.Infrastructure.Idempotency.Migrations
                 schema: "common",
                 columns: table => new
                 {
-                    Scope = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Scope = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     Key = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     Fingerprint = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     State = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    ClaimToken = table.Column<Guid>(type: "uuid", nullable: false),
                     StatusCode = table.Column<int>(type: "integer", nullable: true),
                     ContentType = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     Location = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),

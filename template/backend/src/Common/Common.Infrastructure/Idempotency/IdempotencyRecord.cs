@@ -16,6 +16,9 @@ public sealed class IdempotencyRecord
 
     public string State { get; set; } = Started;
 
+    /// <summary>Who holds the key while it is started; a takeover replaces it, so the earlier holder can no longer complete or abandon.</summary>
+    public Guid ClaimToken { get; set; }
+
     public int? StatusCode { get; set; }
 
     public string? ContentType { get; set; }
