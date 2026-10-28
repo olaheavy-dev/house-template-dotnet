@@ -105,11 +105,11 @@ migrate: ## Apply every module's migrations to the database in ConnectionStrings
 		dotnet ef database update --project $$project --connection "$$ConnectionStrings__Default" || exit 1; \
 	done
 
-migrate-bundle: ## Build one self-contained migration executable per module in .artifacts/migrations (what a deploy runs)
+migrate-bundle: ## Build one migration executable per module in .artifacts/migrations; RUNTIME=linux-x64 makes it self-contained for that platform
 	@mkdir -p $(ARTIFACTS)/migrations
 	@for project in $(MIGRATION_PROJECTS); do \
 		module=$$(basename $$(dirname $$project)); \
-		dotnet ef migrations bundle --project $$project --output $(ARTIFACTS)/migrations/migrate_$$module --force || exit 1; \
+		dotnet ef migrations bundle --project $$project --output $(ARTIFACTS)/migrations/migrate_$$module --force $(if $(RUNTIME),--self-contained --target-runtime $(RUNTIME)) || exit 1; \
 	done
 	# Building a bundle restores for a runtime, which writes it into the lock files; put them back.
 	dotnet restore $(BACKEND) --force-evaluate
