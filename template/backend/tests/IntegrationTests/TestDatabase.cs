@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
-using Modules.Platform.Infrastructure.Persistence;
+using Common.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Testcontainers.PostgreSql;
 
 namespace IntegrationTests;
@@ -25,11 +26,14 @@ public sealed class TestDatabase
         await _postgres.StartAsync();
         ConnectionString = _postgres.GetConnectionString();
 
-        await using var platform = new PlatformDbContext(
-            new DbContextOptionsBuilder<PlatformDbContext>()
-                .UseNpgsql(ConnectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations", PlatformDbContext.Schema))
-                .Options);
-        await platform.Database.MigrateAsync();
+        await using var host = new MigratingApi(ConnectionString);
+        await host.Services.MigrateModuleDatabasesAsync();
+    }
+
+    private sealed class MigratingApi(string connectionString) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+            builder.UseSetting("ConnectionStrings:Default", connectionString);
     }
 
     [OneTimeTearDown]

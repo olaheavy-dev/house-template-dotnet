@@ -57,20 +57,16 @@ public sealed class PersistenceTests
     }
 
     [Test]
-    public async Task The_modules_tables_live_in_its_own_schema()
+    public async Task The_modules_tables_and_migration_history_live_in_its_own_schema()
     {
         await using var connection = new NpgsqlConnection(TestDatabase.ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            "select table_schema from information_schema.tables where table_name in ('notes', '__ef_migrations') order by 1", connection);
-        await using var reader = await command.ExecuteReaderAsync();
-        var schemas = new List<string>();
-        while (await reader.ReadAsync())
-        {
-            schemas.Add(reader.GetString(0));
-        }
 
-        Assert.That(schemas, Is.EqualTo(new[] { "platform", "platform" }));
+        Assert.That(await SchemasHolding("notes", connection), Is.EqualTo(new[] { "platform" }));
+        // Every module has a history table in its own schema; none lands in public.
+        var histories = await SchemasHolding("__ef_migrations", connection);
+        Assert.That(histories, Does.Contain("platform"));
+        Assert.That(histories, Does.Not.Contain("public"));
     }
 
     [Test]
@@ -85,9 +81,24 @@ public sealed class PersistenceTests
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
-        Assert.That(
-            body.RootElement.GetProperty("failing").EnumerateArray().Select(name => name.GetString()),
-            Is.EqualTo(new[] { "database:platform" }));
+        var failing = body.RootElement.GetProperty("failing").EnumerateArray().Select(name => name.GetString()).ToList();
+        Assert.That(failing, Does.Contain("database:platform"));
+        Assert.That(failing, Is.All.StartWith("database:"));
+    }
+
+    private static async Task<List<string>> SchemasHolding(string table, NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand(
+            "select table_schema from information_schema.tables where table_name = @table order by 1", connection);
+        command.Parameters.AddWithValue("table", table);
+        await using var reader = await command.ExecuteReaderAsync();
+        var schemas = new List<string>();
+        while (await reader.ReadAsync())
+        {
+            schemas.Add(reader.GetString(0));
+        }
+
+        return schemas;
     }
 
     private PlatformDbContext NewContext() =>

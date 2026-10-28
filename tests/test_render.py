@@ -195,6 +195,16 @@ def test_the_database_setting_in_env_example_survives_being_sourced_by_the_shell
     assert result.stdout == "Host=localhost;Port=5432;Database=app;Username=postgres;Password=postgres"
 
 
+def test_a_new_module_gets_a_schema_a_context_and_a_generated_first_migration(render):
+    project = render()
+    module = project / "backend/templates/module/src/Modules/Sample"
+    assert 'Schema = "sample-route"' in (module / "Modules.Sample.Infrastructure/Persistence/SampleDbContext.cs").read_text()
+    assert (module / "Modules.Sample.Infrastructure/Persistence/SampleDbContextFactory.cs").is_file()
+    assert "AddModuleDbContext<SampleDbContext>" in (module / "Modules.Sample.Infrastructure/SampleModule.cs").read_text()
+    create = make_dry_run(project, "module", "NAME=Billing")
+    assert "dotnet ef migrations add Initial --project backend/src/Modules/Billing/Modules.Billing.Infrastructure" in create
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed
