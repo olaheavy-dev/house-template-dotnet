@@ -254,6 +254,16 @@ def test_feature_flags_ship_with_the_example_flag_the_public_list_and_the_permis
     realm = json.loads((project / "backend/keycloak/realm.json").read_text())
     assert "flags.read" in {role["name"] for role in realm["roles"]["client"]["api"]}
     assert "feature_management__feature_flags__0__enabled" in (project / "backend/.env.example").read_text()
+def test_the_compiler_reference_does_not_make_the_lock_file_depend_on_the_configuration(render):
+    project = render()
+    csproj = (project / "backend/src/Api/Api/Api.csproj").read_text()
+    # A reference only some configurations have gives them different lock files, and a Release build rewrites the committed one.
+    reference = next(line for line in csproj.splitlines() if "WolverineFx.RuntimeCompilation" in line)
+    assert "Condition" not in reference and "IncludeAssets" in reference
+    lock = json.loads((project / "backend/src/Api/Api/packages.lock.json").read_text())
+    assert "WolverineFx.RuntimeCompilation" in lock["dependencies"]["net10.0"]
+    check = make_dry_run(project, "check-dotnet")
+    assert "--configuration Release -p:RestoreLockedMode=true" in check
 
 
 def test_make_seed_runs_the_seeders_in_development(render):
