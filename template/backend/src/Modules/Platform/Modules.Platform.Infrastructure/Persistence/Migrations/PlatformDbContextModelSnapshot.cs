@@ -53,7 +53,8 @@ namespace Modules.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OwnerId");
+                    b.HasIndex("OwnerId", "Id")
+                        .IsDescending(false, true);
 
                     b.ToTable("notes", "platform");
                 });
