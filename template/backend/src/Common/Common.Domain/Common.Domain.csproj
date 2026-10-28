@@ -2,5 +2,7 @@
   <ItemGroup>
     <!-- Expected failures are values (ErrorOr<T>), from the domain up to the endpoints. -->
     <PackageReference Include="ErrorOr" />
+    <!-- [UsedImplicitly] tells InspectCode what a framework sets; compile-time only. -->
+    <PackageReference Include="JetBrains.Annotations" PrivateAssets="all" />
   </ItemGroup>
 </Project>

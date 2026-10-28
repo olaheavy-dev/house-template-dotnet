@@ -24,7 +24,10 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | JWT bearer authentication | Microsoft.AspNetCore.Authentication.JwtBearer 10.0.14 | https://learn.microsoft.com/aspnet/core/security/authentication/configure-jwt-bearer-authentication |
 | Minimal API authorization (`RequireAuthorization`) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis/security |
 | Keycloak (local sign-in, realm import) | 26.8.1 | https://www.keycloak.org/server/importExport |
-| Testcontainers for .NET (Keycloak) | 4.16.0 | https://dotnet.testcontainers.org/modules/ |
+| Testcontainers for .NET (Keycloak, PostgreSQL) | 4.16.0 | https://dotnet.testcontainers.org/modules/ |
+| EF Core (Npgsql provider, migrations, `dotnet ef`) | Npgsql.EntityFrameworkCore.PostgreSQL 10.0.3, Microsoft.EntityFrameworkCore.Design and dotnet-ef 10.0.14 | https://learn.microsoft.com/ef/core/ |
+| Npgsql concurrency tokens (`xmin`) | 10.0 | https://www.npgsql.org/efcore/modeling/concurrency.html |
+| Health checks for EF Core | Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore 10.0.14 | https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#entity-framework-core-dbcontext-probe |
 | Security headers | NetEscapades.AspNetCore.SecurityHeaders 1.3.1 | https://github.com/andrewlock/NetEscapades.AspNetCore.SecurityHeaders |
 | JetBrains.Annotations (`[UsedImplicitly]` for what a framework uses) | 2026.2.0 | https://www.jetbrains.com/help/resharper/Reference__Code_Annotation_Attributes.html |
 | Scalar (API reference, development only) | Scalar.AspNetCore 2.18.3 | https://scalar.com/products/api-references/integrations/aspnetcore/integration |
@@ -55,6 +58,9 @@ Checked 27 Oct 2026; review this table whenever Dependabot proposes a major upgr
 | NUnit, NUnit3TestAdapter, NUnit.Analyzers | 100M+ | NUnit team | 5.0.0, Sep 2026 | MIT | Tests only |
 | Reqnroll | 31 million | 271 contributors | 3.3.4, Mar 2026 | BSD-3-Clause | Feature files are plain Gherkin |
 | ErrorOr | 12.9 million | one main author | 2.1.1, May 2026 | MIT (no licence metadata in the package; see `backend/licenses/overrides.json`) | Copy its MIT source into Common.Domain with the same API |
+| Npgsql.EntityFrameworkCore.PostgreSQL | 538 million | Shay Rojansky and the Npgsql team | 10.0.3, Jul 2026 (repository active, Oct 2026) | PostgreSQL licence (permissive, OSI-approved; added to `backend/licenses/allowed.json`) | Another EF Core provider, or Dapper over Npgsql; modules touch EF only in Infrastructure |
+| Testcontainers.PostgreSql | 54 million | Testcontainers (Docker) | 4.16.0, Oct 2026 | MIT | Tests only; `docker run` in a fixture |
+| Microsoft.EntityFrameworkCore.Design, dotnet-ef, Extensions.Diagnostics.HealthChecks.EntityFrameworkCore | 1.1 billion, 135 million, 158 million | Microsoft | 10.0.14, Oct 2026 | MIT | Part of .NET; Design and dotnet-ef are build-time only |
 | Mono.Cecil | 116 million | jbevain | 0.11.6, **Oct 2024** (accepted until Apr 2027) | MIT | Goes with ArchUnitNET |
 | TngTech.ArchUnitNET | 10.6 million | TNG | 0.13.5, Oct 2026 | Apache-2.0 | Tests only; the rules are plain C# over its model |
 | Immediate.Handlers | 0.29 million | 9 contributors | 4.2.0, Sep 2026 | MIT | Mediator 3.x, or a small in-house dispatcher; handlers touch the package only through `[Handler]` and `IHandler<,>` |

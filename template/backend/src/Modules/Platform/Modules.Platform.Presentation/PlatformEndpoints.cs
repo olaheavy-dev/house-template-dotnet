@@ -10,6 +10,7 @@ public static class PlatformEndpoints
         app.MapMe();
         app.MapPing();
         app.MapPingStream();
+        app.MapNotes();
         return app;
     }
 }

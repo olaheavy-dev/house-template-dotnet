@@ -37,7 +37,7 @@ INSTALLS += install-dotnet
 CHECKS += check-dotnet
 FAST_CHECKS += check-fast-dotnet
 
-.PHONY: install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
+.PHONY: migrate migrate-bundle seed install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
 
 install-dotnet: ## Restore the backend's tools and packages from their lock files (needs the SDK in global.json)
 	dotnet tool restore
@@ -94,6 +94,30 @@ module: ## Add a module in its six projects with an example query and test: make
 	# The module's example endpoint changes the OpenAPI document.
 	dotnet build backend/src/Api/Api --configuration Release --no-restore
 	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, its registration in Program.cs and its endpoint in $(OPENAPI). Run make check."
+
+# Every module with a database has an IDesignTimeDbContextFactory in its Infrastructure project.
+MIGRATION_PROJECTS = $$(find backend/src/Modules -name '*DbContextFactory.cs' -path '*Persistence*' | sed 's|/Persistence/.*||' | sort)
+
+migrate: ## Apply every module's migrations to the database in ConnectionStrings__Default (backend/.env or the environment)
+	@if [ -f backend/.env ]; then set -a; . ./backend/.env; set +a; fi; \
+	test -n "$$ConnectionStrings__Default" || { echo "Set ConnectionStrings__Default (see backend/.env.example)"; exit 1; }; \
+	for project in $(MIGRATION_PROJECTS); do \
+		dotnet ef database update --project $$project --connection "$$ConnectionStrings__Default" || exit 1; \
+	done
+
+migrate-bundle: ## Build one self-contained migration executable per module in .artifacts/migrations (what a deploy runs)
+	@mkdir -p $(ARTIFACTS)/migrations
+	@for project in $(MIGRATION_PROJECTS); do \
+		module=$$(basename $$(dirname $$project)); \
+		dotnet ef migrations bundle --project $$project --output $(ARTIFACTS)/migrations/migrate_$$module --force || exit 1; \
+	done
+	# Building a bundle restores for a runtime, which writes it into the lock files; put them back.
+	dotnet restore $(BACKEND) --force-evaluate
+
+seed: ## Add example data for development (a no-op where it already exists)
+	@export ASPNETCORE_ENVIRONMENT=Development; \
+	if [ -f backend/.env ]; then set -a; . ./backend/.env; set +a; fi; \
+	dotnet run --project backend/src/Api/Api -- seed
 
 doctor-backend: ## Check this machine has what the backend needs: the SDK global.json names, Docker for integration tests
 	@command -v dotnet >/dev/null || { echo "dotnet not found: install the .NET SDK named in global.json"; exit 1; }

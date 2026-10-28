@@ -78,3 +78,8 @@ dotnet_diagnostic.CA1861.severity = none
 [{src/Modules/**/*.Application/**.cs,templates/module/**/*.Application/**.cs,tests/**.cs}]
 resharper_unused_parameter_local_highlighting = none
 resharper_not_accessed_positional_property_global_highlighting = none
+
+# EF Core writes migrations; they are regenerated, never hand-edited, so the analyzers, the
+# formatter and InspectCode leave them alone.
+[**/Persistence/Migrations/*.cs]
+generated_code = true

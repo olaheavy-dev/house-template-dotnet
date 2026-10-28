@@ -5,4 +5,10 @@ public static class PlatformPermissions
 {
     /// <summary>See your own account.</summary>
     public const string ReadMe = "me.read";
+
+    /// <summary>See your own notes.</summary>
+    public const string ReadNotes = "notes.read";
+
+    /// <summary>Write notes.</summary>
+    public const string WriteNotes = "notes.write";
 }

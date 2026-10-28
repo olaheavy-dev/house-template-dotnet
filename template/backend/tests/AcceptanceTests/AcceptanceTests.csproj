@@ -16,6 +16,7 @@
     <PackageReference Include="Reqnroll.NUnit" />
     <PackageReference Include="coverlet.MTP" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
     <ProjectReference Include="..\..\src\Api\Api\Api.csproj" />
   </ItemGroup>
   <ItemGroup>
