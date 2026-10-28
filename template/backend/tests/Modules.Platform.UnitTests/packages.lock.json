@@ -38,40 +38,10 @@
           "Microsoft.Testing.Platform.MSBuild": "2.4.1"
         }
       },
-      "Carter.Analyzers": {
-        "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "NC8nnaoCCKUDkZgDXIk7p7IgXOYsAYrOPp4a9AwFPGSoa92VqOnpp/O4YeKicnMByNigTCNzua7yxIbSFfRTqA==",
-        "dependencies": {
-          "Microsoft.CodeAnalysis.CSharp": "4.14.0"
-        }
-      },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
         "resolved": "2.23.0",
         "contentHash": "nWArUZTdU7iqZLycLKWe0TDms48KKGE6pONH2terYNa8REXiqixrMOkf1sk5DHGMaUTqONU2YkS4SAXBhLStgw=="
-      },
-      "Microsoft.CodeAnalysis.Analyzers": {
-        "type": "Transitive",
-        "resolved": "3.11.0",
-        "contentHash": "v/EW3UE8/lbEYHoC2Qq7AR/DnmvpgdtAMndfQNmpuIMx/Mto8L5JnuCfdBYtgvalQOtfNCnxFejxuRrryvUTsg=="
-      },
-      "Microsoft.CodeAnalysis.Common": {
-        "type": "Transitive",
-        "resolved": "4.14.0",
-        "contentHash": "PC3tuwZYnC+idaPuoC/AZpEdwrtX7qFpmnrfQkgobGIWiYmGi5MCRtl5mx6QrfMGQpK78X2lfIEoZDLg/qnuHg==",
-        "dependencies": {
-          "Microsoft.CodeAnalysis.Analyzers": "3.11.0"
-        }
-      },
-      "Microsoft.CodeAnalysis.CSharp": {
-        "type": "Transitive",
-        "resolved": "4.14.0",
-        "contentHash": "568a6wcTivauIhbeWcCwfWwIn7UV7MeHEBvFB2uzGIpM2OhJ4eM/FZ8KS0yhPoNxnSpjGzz7x7CIjTxhslojQA==",
-        "dependencies": {
-          "Microsoft.CodeAnalysis.Analyzers": "3.11.0",
-          "Microsoft.CodeAnalysis.Common": "[4.14.0]"
-        }
       },
       "Microsoft.Extensions.Configuration": {
         "type": "Transitive",
@@ -128,8 +98,8 @@
       },
       "Microsoft.Extensions.DependencyModel": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "RFYJR7APio/BiqdQunRq6DB+nDB6nc2qhHr77mlvZ0q0BT8PubMXN7XicmfzCbrDE/dzhBnUKBRXLTcqUiZDGg=="
+        "resolved": "8.0.2",
+        "contentHash": "mUBDZZRgZrSyFOsJ2qJJ9fXfqd/kXJwf3AiDoqLD9m6TjY5OO/vLNOb9fb4juC0487eq4hcGN/M2Rh/CKS7QYw=="
       },
       "Microsoft.Extensions.FileProviders.Abstractions": {
         "type": "Transitive",
@@ -234,7 +204,6 @@
       "common.presentation": {
         "type": "Project",
         "dependencies": {
-          "Carter": "[10.0.0, )",
           "Common.Application": "[1.0.0, )"
         }
       },
@@ -275,17 +244,6 @@
       },
       "modules.platform.publicapi": {
         "type": "Project"
-      },
-      "Carter": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "TMSfoaIwEuQBqDxt0EdUmGLe6yLnkEBwYeWunyDfxhDPmDKtV/o1tDYsNWG5eMO6ontHonFttIMwbsg+ddi8YQ==",
-        "dependencies": {
-          "Carter.Analyzers": "10.0.0",
-          "FluentValidation": "12.1.0",
-          "Microsoft.Extensions.DependencyModel": "10.0.0"
-        }
       },
       "ErrorOr": {
         "type": "CentralTransitive",

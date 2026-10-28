@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Carter;
 using Common.Presentation;
 using JetBrains.Annotations;
 using Microsoft.AspNetCore.Builder;
@@ -17,9 +16,9 @@ public sealed record MeResponse(string Id, IReadOnlyList<string> Permissions);
 /// signed-in user with <see cref="PlatformPermissions.ReadMe"/>, which Keycloak's default roles
 /// give everyone. Replace or extend it once the product has a user module.
 /// </summary>
-public sealed class MeEndpoint : ICarterModule
+internal static class MeEndpoint
 {
-    public void AddRoutes(IEndpointRouteBuilder app)
+    internal static void MapMe(this IEndpointRouteBuilder app)
     {
         app.MapGet("v1/me", (ClaimsPrincipal user) =>
                 TypedResults.Ok(new MeResponse(user.FindFirstValue(SignedInUser.IdClaim)!, user.PermissionsOf())))

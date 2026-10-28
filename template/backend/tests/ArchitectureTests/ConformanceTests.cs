@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace ArchitectureTests;
@@ -7,7 +8,7 @@ namespace ArchitectureTests;
 /// The module layout, checked on the files: every module has its six projects, every project is
 /// built, and the host registers every module. A step missed when adding a module fails here.
 /// </summary>
-public sealed class ConformanceTests
+public sealed partial class ConformanceTests
 {
     private static readonly string[] ModuleLayers =
         ["Domain", "Application", "Infrastructure", "Presentation", "IntegrationEvents", "PublicApi"];
@@ -64,9 +65,29 @@ public sealed class ConformanceTests
         {
             Assert.That(host, Does.Contain($@"Modules\{module}\Modules.{module}.Infrastructure\Modules.{module}.Infrastructure.csproj"), module);
             Assert.That(program, Does.Contain($"Add{module}Module("), module);
-            Assert.That(program, Does.Contain($"Modules.{module}.Presentation.AssemblyReference.Assembly"), module);
+            Assert.That(program, Does.Contain($"app.Map{module}Endpoints();"), module);
         }
     }
+
+    [Test]
+    public void Every_endpoint_is_mapped_by_its_module()
+    {
+        foreach (var module in Modules())
+        {
+            var presentation = BackendPath("src", "Modules", module, $"Modules.{module}.Presentation");
+            var mapped = File.ReadAllText(Path.Combine(presentation, $"{module}Endpoints.cs"));
+            foreach (var file in Directory.GetFiles(presentation, "*Endpoint.cs"))
+            {
+                var method = MapMethod().Match(File.ReadAllText(file));
+                Assert.That(method.Success, Is.True, $"{Path.GetFileName(file)}: expose one `static void Map…(this IEndpointRouteBuilder app)`");
+                Assert.That(mapped, Does.Contain($"app.{method.Groups[1].Value}();"),
+                    $"{module}: call {method.Groups[1].Value}() in {module}Endpoints.cs, or the endpoint is never served");
+            }
+        }
+    }
+
+    [GeneratedRegex(@"static void (Map\w+)\(this IEndpointRouteBuilder app\)")]
+    private static partial Regex MapMethod();
 
     [Test]
     public void Every_module_declares_its_handler_pipeline()

@@ -1,8 +1,8 @@
 using Api;
-using Carter;
 using Common.Infrastructure;
 using Common.Presentation;
 using Modules.Platform.Infrastructure;
+using Modules.Platform.Presentation;
 using Scalar.AspNetCore;
 using ServiceDefaults;
 
@@ -17,14 +17,6 @@ builder.Services.AddAuth(builder.Configuration, builder.Environment);
 // Each module registers itself. `make module NAME=<Name>` adds new ones above the marker.
 builder.Services.AddPlatformModule(builder.Configuration);
 // make module: registrations
-
-// Each module's Presentation assembly, where its endpoints live. Pass an array: one bare assembly
-// selects the overload that scans that assembly's dependencies instead.
-builder.Services.AddCarter(new DependencyContextAssemblyCatalog(
-[
-    Modules.Platform.Presentation.AssemblyReference.Assembly,
-    // make module: endpoints
-]));
 
 var app = builder.Build();
 
@@ -43,6 +35,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHealthEndpoints();
-app.MapCarter();
+// Each module maps its own endpoints. `make module` adds new ones above the marker.
+app.MapPlatformEndpoints();
+// make module: endpoints
 
 await app.RunAsync();
