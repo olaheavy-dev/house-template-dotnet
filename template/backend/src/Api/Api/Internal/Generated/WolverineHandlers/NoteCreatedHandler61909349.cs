@@ -22,7 +22,7 @@ namespace Internal.Generated.WolverineHandlers
 
             System.Diagnostics.Activity.Current?.SetTag("message.handler", "Modules.Platform.Infrastructure.Subscribers.NoteCreatedConsumer");
             System.Diagnostics.Activity.Current?.SetTag("handler.type", "Modules.Platform.Infrastructure.Subscribers.NoteCreatedConsumer");
-            
+
             // The actual message execution
             Modules.Platform.Infrastructure.Subscribers.NoteCreatedConsumer.Handle(noteCreated, _loggerOfNoteCreatedConsumer);
 
@@ -31,6 +31,6 @@ namespace Internal.Generated.WolverineHandlers
     }
 
     // END: NoteCreatedHandler61909349
-    
-    
+
+
 }

@@ -112,6 +112,8 @@ define CODEGEN
 dotnet build backend/src/Api/Api --configuration Debug --no-restore -p:OpenApiDocumentsDirectory=$(abspath $(ARTIFACTS)/openapi-debug)
 ConnectionStrings__Default='Host=localhost;Database=codegen' Messaging__GeneratedCodePath=$(1) \
 	dotnet backend/src/Api/Api/bin/Debug/net10.0/Api.dll codegen write
+# Wolverine leaves trailing spaces; base's pre-commit would trim them, and the check would then see a difference.
+find $(1) -name '*.cs' -exec perl -pi -e 's/[ \t]+$$//' {} +
 endef
 
 codegen: ## Regenerate the messaging glue code after adding or changing a subscriber (commit the result)
