@@ -1,8 +1,10 @@
 using Api;
 using Common.Infrastructure;
+using Common.Infrastructure.Idempotency;
 using Common.Infrastructure.Messaging;
 using Common.Infrastructure.Persistence;
 using Common.Presentation;
+using Common.Presentation.Idempotency;
 using JasperFx;
 using Modules.Platform.Infrastructure;
 using Modules.Platform.Presentation;
@@ -14,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.AddMessaging(typeof(Program).Assembly);
 builder.Services.AddCommon();
+builder.Services.AddIdempotency(builder.Configuration);
 builder.Services.AddApiProblemDetails();
 builder.Services.AddApiOpenApi(builder.Configuration);
 builder.Services.AddHardening(builder.Configuration);
@@ -42,6 +45,8 @@ app.UseSecurityHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseHardening();
+// Endpoints that opt in with .WithIdempotencyKey() run once per Idempotency-Key.
+app.UseIdempotency();
 
 if (app.Environment.IsDevelopment())
 {

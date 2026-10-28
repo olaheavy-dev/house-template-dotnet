@@ -70,6 +70,8 @@ dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1515.severity = none
 # Expected values read best inline in an assertion; a test runs each one once.
 dotnet_diagnostic.CA1861.severity = none
+# A test may start a request, do something else, and await it before the client goes out of scope.
+dotnet_diagnostic.CA2025.severity = none
 
 # JetBrains InspectCode (make check), where the frameworks make a finding wrong:
 # - Immediate.Handlers fixes a handler's HandleAsync(request, cancellationToken) signature, so a
@@ -82,7 +84,7 @@ resharper_not_accessed_positional_property_global_highlighting = none
 
 # EF Core writes migrations; they are regenerated, never hand-edited, so the analyzers, the
 # formatter and InspectCode leave them alone.
-[**/Persistence/Migrations/*.cs]
+[**/Migrations/*.cs]
 generated_code = true
 
 # Wolverine writes the host's handler glue code (make codegen); it is regenerated, never hand-edited, and

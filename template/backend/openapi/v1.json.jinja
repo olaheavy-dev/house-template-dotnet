@@ -150,6 +150,17 @@
           "Notes"
         ],
         "operationId": "CreateNote",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "A unique value per request. Retrying with the same key (and the same request) runs it once and returns the first response, marked Idempotency-Replayed: true.",
+            "schema": {
+              "maxLength": 255,
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

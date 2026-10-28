@@ -226,6 +226,17 @@ def test_the_list_endpoint_example_documents_cursor_paging(render):
     assert set(page["required"]) == {"items", "nextCursor"}
 
 
+def test_the_idempotency_key_is_documented_on_the_endpoint_that_takes_it_and_its_table_is_migrated(render):
+    project = render()
+    document = json.loads((project / "backend/openapi/v1.json").read_text())
+    post = document["paths"]["/v1/platform/notes"]["post"]
+    header = next(p for p in post["parameters"] if p["name"] == "Idempotency-Key")
+    assert header["in"] == "header" and header.get("required", False) is False
+    assert (project / "backend/src/Common/Common.Infrastructure/Idempotency/CommonDbContextFactory.cs").is_file()
+    migrate = make_dry_run(project, "migrate")
+    assert "find backend/src -name '*DbContextFactory.cs'" in migrate
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed

@@ -120,8 +120,8 @@ codegen: ## Regenerate the messaging glue code after adding or changing a subscr
 	rm -rf $(GENERATED)
 	$(call CODEGEN,$(abspath $(GENERATED)))
 
-# Every module with a database has an IDesignTimeDbContextFactory in its Infrastructure project.
-MIGRATION_PROJECTS = $$(find backend/src/Modules -name '*DbContextFactory.cs' -path '*Persistence*' | sed 's|/Persistence/.*||' | sort)
+# Every module with a database, and the shared kernel's, has an IDesignTimeDbContextFactory in its Infrastructure project.
+MIGRATION_PROJECTS = $$(find backend/src -name '*DbContextFactory.cs' -not -path '*/obj/*' -not -path '*/bin/*' | sed 's|/[^/]*/[^/]*$$||' | sort)
 
 migrate: ## Apply every module's migrations to the database in ConnectionStrings__Default (backend/.env or the environment)
 	@if [ -f backend/.env ]; then set -a; . ./backend/.env; set +a; fi; \

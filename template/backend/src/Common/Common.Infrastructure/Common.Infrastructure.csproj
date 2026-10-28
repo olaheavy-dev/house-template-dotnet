@@ -8,4 +8,8 @@
     <PackageReference Include="WolverineFx.EntityFrameworkCore" />
     <PackageReference Include="WolverineFx.Postgresql" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Only for `dotnet ef` (migrations); nothing of it ships. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
 </Project>
