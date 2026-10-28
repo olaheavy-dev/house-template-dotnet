@@ -218,6 +218,14 @@ def test_the_host_ships_wolverines_generated_glue_code_and_make_checks_it_is_cur
     assert "codegen write" in make_dry_run(project, "module", "NAME=Billing")
 
 
+def test_the_list_endpoint_example_documents_cursor_paging(render):
+    document = json.loads((render() / "backend/openapi/v1.json").read_text())
+    parameters = {p["name"] for p in document["paths"]["/v1/platform/notes"]["get"]["parameters"]}
+    assert {"limit", "cursor"} <= parameters
+    page = document["components"]["schemas"]["PageOfNoteResponse"]
+    assert set(page["required"]) == {"items", "nextCursor"}
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed

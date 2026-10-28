@@ -12,6 +12,8 @@ public sealed class NoteSteps : IDisposable
     private HttpResponseMessage? _response;
     private Note? _note;
     private Uri? _location;
+    private readonly List<List<Note>> _pages = [];
+    private readonly List<Guid> _saved = [];
 
     [Given("I am signed in as {string}")]
     [When("I am signed in as {string}")]
@@ -30,7 +32,49 @@ public sealed class NoteSteps : IDisposable
         _response = await _client.PostAsJsonAsync(new Uri("/v1/platform/notes", UriKind.Relative), new { text });
         _location = _response.Headers.Location;
         _note = _response.IsSuccessStatusCode ? await _response.Content.ReadFromJsonAsync<Note>() : null;
+        if (_note is not null)
+        {
+            _saved.Add(_note.Id);
+        }
     }
+
+    [When("I list my notes {int} at a time")]
+    public async Task WhenIListMyNotesAtATime(int limit)
+    {
+        string? cursor = null;
+        do
+        {
+            _response?.Dispose();
+            var query = $"/v1/platform/notes?limit={limit}" + (cursor is null ? string.Empty : $"&cursor={Uri.EscapeDataString(cursor)}");
+            _response = await _client.GetAsync(new Uri(query, UriKind.Relative));
+            if (!_response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var page = (await _response.Content.ReadFromJsonAsync<NotePage>())!;
+            _pages.Add(page.Items);
+            cursor = page.NextCursor;
+        }
+        while (cursor is not null);
+    }
+
+    [When("I list my notes starting from the cursor {string}")]
+    public async Task WhenIListMyNotesStartingFromTheCursor(string cursor)
+    {
+        _response?.Dispose();
+        _response = await _client.GetAsync(new Uri($"/v1/platform/notes?cursor={Uri.EscapeDataString(cursor)}", UriKind.Relative));
+    }
+
+    [Then("I get pages of 2, 2 and 1 notes")]
+    public void ThenIGetPagesOf221Notes() => Assert.That(_pages.Select(page => page.Count), Is.EqualTo(new[] { 2, 2, 1 }));
+
+    [Then("every one of my notes appears once")]
+    public void ThenEveryOneOfMyNotesAppearsOnce() =>
+        Assert.That(_pages.SelectMany(page => page).Select(note => note.Id), Is.EquivalentTo(_saved));
+
+    [Then("the request is refused as invalid")]
+    public void ThenTheRequestIsRefusedAsInvalid() => Assert.That(_response?.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
     [Then("the note is created")]
     public void ThenTheNoteIsCreated() => Assert.That(_response?.StatusCode, Is.EqualTo(HttpStatusCode.Created));
@@ -63,4 +107,6 @@ public sealed class NoteSteps : IDisposable
     }
 
     private sealed record Note(Guid Id, string Text);
+
+    private sealed record NotePage(List<Note> Items, string? NextCursor);
 }

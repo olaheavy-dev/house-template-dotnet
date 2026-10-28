@@ -12,4 +12,11 @@ internal sealed class NoteStore(ModuleOutbox<PlatformDbContext> outbox) : Outbox
 
     public Task<Note?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         Db.Notes.FirstOrDefaultAsync(note => note.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Note>> ListNewestAsync(string ownerId, Guid? before, int take, CancellationToken cancellationToken) =>
+        await Db.Notes
+            .Where(note => note.OwnerId == ownerId && (before == null || note.Id.CompareTo(before.Value) < 0))
+            .OrderByDescending(note => note.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
 }
