@@ -1,4 +1,3 @@
-using Carter;
 using Common.Presentation;
 using ErrorOr;
 using Immediate.Handlers.Shared;
@@ -9,10 +8,10 @@ using Modules.Platform.Application.Ping;
 
 namespace Modules.Platform.Presentation;
 
-/// <summary>GET /v1/platform/ping. One Carter module per feature; Carter finds them at start-up.</summary>
-public sealed class PingEndpoint : ICarterModule
+/// <summary>GET /v1/platform/ping. One static class per feature; the module's `Map…Endpoints` calls it.</summary>
+internal static class PingEndpoint
 {
-    public void AddRoutes(IEndpointRouteBuilder app)
+    internal static void MapPing(this IEndpointRouteBuilder app)
     {
         app.MapGet("v1/platform/ping", async (
                 IHandler<GetPingQuery, ErrorOr<PingResponse>> handler,

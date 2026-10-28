@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
-using Carter;
 using ErrorOr;
 using Immediate.Handlers.Shared;
 using Microsoft.AspNetCore.Builder;
@@ -18,11 +17,11 @@ namespace Modules.Platform.Presentation;
 /// Last-Event-ID carries on from the next one (browsers' EventSource does this itself). Streams
 /// opt out of the request timeout.
 /// </summary>
-public sealed class PingStreamEndpoint : ICarterModule
+internal static class PingStreamEndpoint
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(15);
 
-    public void AddRoutes(IEndpointRouteBuilder app)
+    internal static void MapPingStream(this IEndpointRouteBuilder app)
     {
         app.MapGet("v1/platform/pings", (
                 IHandler<GetPingQuery, ErrorOr<PingResponse>> handler,
