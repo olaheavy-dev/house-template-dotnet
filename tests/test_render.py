@@ -205,6 +205,19 @@ def test_a_new_module_gets_a_schema_a_context_and_a_generated_first_migration(re
     assert "dotnet ef migrations add Initial --project backend/src/Modules/Billing/Modules.Billing.Infrastructure" in create
 
 
+def test_the_host_ships_wolverines_generated_glue_code_and_make_checks_it_is_current(render):
+    project = render()
+    generated = list((project / "backend/src/Api/Api/Internal/Generated").rglob("*.cs"))
+    assert any(path.name == "GeneratedHandlerRegistry.cs" for path in generated)
+    assert "generated_code = true" in (project / "backend/.editorconfig").read_text().split("Internal/Generated")[1]
+    codegen = make_dry_run(project, "codegen")
+    assert "codegen write" in codegen and "Messaging__GeneratedCodePath" in codegen
+    check = make_dry_run(project, "check-dotnet")
+    assert "diff -r backend/src/Api/Api/Internal/Generated" in check
+    # A new module's subscribers change the host's glue code.
+    assert "codegen write" in make_dry_run(project, "module", "NAME=Billing")
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed

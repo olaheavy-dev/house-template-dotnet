@@ -74,12 +74,18 @@ dotnet_diagnostic.CA1861.severity = none
 # JetBrains InspectCode (make check), where the frameworks make a finding wrong:
 # - Immediate.Handlers fixes a handler's HandleAsync(request, cancellationToken) signature, so a
 #   handler that doesn't need one of them still declares it.
-# - Response records in Application are read by the JSON serializer, which InspectCode can't see.
-[{src/Modules/**/*.Application/**.cs,templates/module/**/*.Application/**.cs,tests/**.cs}]
+# - Response records in Application are read by the JSON serializer, which InspectCode can't see; integration
+#   events are read by subscribers in other modules, which it can't see either.
+[{src/Modules/**/*.Application/**.cs,templates/module/**/*.Application/**.cs,src/Modules/**/*.IntegrationEvents/**.cs,templates/module/**/*.IntegrationEvents/**.cs,tests/**.cs}]
 resharper_unused_parameter_local_highlighting = none
 resharper_not_accessed_positional_property_global_highlighting = none
 
 # EF Core writes migrations; they are regenerated, never hand-edited, so the analyzers, the
 # formatter and InspectCode leave them alone.
 [**/Persistence/Migrations/*.cs]
+generated_code = true
+
+# Wolverine writes the host's handler glue code (make codegen); it is regenerated, never hand-edited, and
+# CI fails when the committed copy differs from a fresh one.
+[src/Api/Api/Internal/Generated/**.cs]
 generated_code = true

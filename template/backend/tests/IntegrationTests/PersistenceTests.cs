@@ -6,6 +6,7 @@ using Microsoft.Extensions.Time.Testing;
 using Modules.Platform.Domain;
 using Modules.Platform.Infrastructure.Persistence;
 using Npgsql;
+using Testcontainers.PostgreSql;
 
 namespace IntegrationTests;
 
@@ -70,13 +71,21 @@ public sealed class PersistenceTests
     }
 
     [Test]
-    public async Task Ready_is_503_naming_the_database_when_it_cannot_be_reached()
+    public async Task Ready_is_503_naming_the_database_once_it_goes_away()
     {
+        // The API needs its database to start (messaging registers the node there), so take it away after.
+        await using var postgres = new PostgreSqlBuilder(TestDatabase.Image).Build();
+        await postgres.StartAsync();
         await using var api = new TestApi(
             _ => { },
-            settings: new Dictionary<string, string> { ["ConnectionStrings:Default"] = "Host=localhost;Port=1;Timeout=1;Username=x;Password=x" });
+            settings: new Dictionary<string, string> { ["ConnectionStrings:Default"] = postgres.GetConnectionString() });
         using var client = api.CreateClient();
+        using (var before = await client.GetAsync(new Uri("/health/ready", UriKind.Relative)))
+        {
+            Assert.That(before.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
 
+        await postgres.StopAsync();
         using var response = await client.GetAsync(new Uri("/health/ready", UriKind.Relative));
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 

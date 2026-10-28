@@ -24,6 +24,8 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | JWT bearer authentication | Microsoft.AspNetCore.Authentication.JwtBearer 10.0.14 | https://learn.microsoft.com/aspnet/core/security/authentication/configure-jwt-bearer-authentication |
 | Minimal API authorization (`RequireAuthorization`) | 10.0 | https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis/security |
 | Keycloak (local sign-in, realm import) | 26.8.1 | https://www.keycloak.org/server/importExport |
+| Wolverine (transactional outbox, inbox, durable local queues; no broker) | WolverineFx, .EntityFrameworkCore, .Postgresql, .RuntimeCompilation 6.56.0 | https://wolverinefx.net/guide/durability/efcore/ |
+| Wolverine code generation (`codegen write`, `TypeLoadMode.Static`) | 6.56.0 | https://wolverinefx.net/guide/codegen.html |
 | Testcontainers for .NET (Keycloak, PostgreSQL) | 4.16.0 | https://dotnet.testcontainers.org/modules/ |
 | EF Core (Npgsql provider, migrations, `dotnet ef`) | Npgsql.EntityFrameworkCore.PostgreSQL 10.0.3, Microsoft.EntityFrameworkCore.Design and dotnet-ef 10.0.14 | https://learn.microsoft.com/ef/core/ |
 | Npgsql concurrency tokens (`xmin`) | 10.0 | https://www.npgsql.org/efcore/modeling/concurrency.html |
@@ -61,6 +63,7 @@ Checked 27 Oct 2026; review this table whenever Dependabot proposes a major upgr
 | Npgsql.EntityFrameworkCore.PostgreSQL | 538 million | Shay Rojansky and the Npgsql team | 10.0.3, Jul 2026 (repository active, Oct 2026) | PostgreSQL licence (permissive, OSI-approved; added to `backend/licenses/allowed.json`) | Another EF Core provider, or Dapper over Npgsql; modules touch EF only in Infrastructure |
 | Testcontainers.PostgreSql | 54 million | Testcontainers (Docker) | 4.16.0, Oct 2026 | MIT | Tests only; `docker run` in a fixture |
 | Microsoft.EntityFrameworkCore.Design, dotnet-ef, Extensions.Diagnostics.HealthChecks.EntityFrameworkCore | 1.1 billion, 135 million, 158 million | Microsoft | 10.0.14, Oct 2026 | MIT | Part of .NET; Design and dotnet-ef are build-time only |
+| WolverineFx, WolverineFx.EntityFrameworkCore, WolverineFx.Postgresql, WolverineFx.RuntimeCompilation | 10.9 million (WolverineFx) | Jeremy D. Miller and contributors | 6.56.0, Oct 2026 (repository active, Oct 2026) | MIT (re-check the licence on every upgrade: record "MIT at 6.56.0") | Modules touch it only through `IUnitOfWork` and by convention-named subscribers (an architecture test enforces it), so it is replaceable by another outbox; a hand-written outbox is the fallback. RuntimeCompilation is Debug only |
 | Mono.Cecil | 116 million | jbevain | 0.11.6, **Oct 2024** (accepted until Apr 2027) | MIT | Goes with ArchUnitNET |
 | TngTech.ArchUnitNET | 10.6 million | TNG | 0.13.5, Oct 2026 | Apache-2.0 | Tests only; the rules are plain C# over its model |
 | Immediate.Handlers | 0.29 million | 9 contributors | 4.2.0, Sep 2026 | MIT | Mediator 3.x, or a small in-house dispatcher; handlers touch the package only through `[Handler]` and `IHandler<,>` |

@@ -37,7 +37,7 @@ INSTALLS += install-dotnet
 CHECKS += check-dotnet
 FAST_CHECKS += check-fast-dotnet
 
-.PHONY: migrate migrate-bundle seed install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
+.PHONY: codegen migrate migrate-bundle seed install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
 
 install-dotnet: ## Restore the backend's tools and packages from their lock files (needs the SDK in global.json)
 	dotnet tool restore
@@ -50,6 +50,10 @@ check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer
 		diff -u $(OPENAPI) $(OPENAPI_BUILT) | head -40; exit 1; }
 	$(LICENSES)
 	$(INSPECT)
+	@rm -rf $(ARTIFACTS)/codegen
+	$(call CODEGEN,$(abspath $(ARTIFACTS)/codegen))
+	@diff -r $(GENERATED) $(ARTIFACTS)/codegen >/dev/null || { echo "$(GENERATED) is out of date: run make codegen and commit it."; \
+		diff -r $(GENERATED) $(ARTIFACTS)/codegen | head -40; exit 1; }
 	dotnet test --solution $(BACKEND) --configuration Release --no-build --coverlet --coverlet-output-format cobertura --results-directory $(ARTIFACTS)/test-results
 	# Again in Debug: ArchUnitNET reads the compiled IL, and Release optimisations can hide a dependency.
 	dotnet test --project backend/tests/ArchitectureTests --configuration Debug
@@ -94,9 +98,25 @@ module: ## Add a module in its six projects with an example query and test: make
 	dotnet tool restore
 	dotnet ef migrations add Initial --project backend/src/Modules/$(NAME)/Modules.$(NAME).Infrastructure --output-dir Persistence/Migrations
 	dotnet format $(BACKEND) --include $(PROGRAM) --no-restore
+	# A module's subscribers change the host's glue code.
+	rm -rf $(GENERATED)
+	$(call CODEGEN,$(abspath $(GENERATED)))
 	# The module's example endpoint changes the OpenAPI document.
 	dotnet build backend/src/Api/Api --configuration Release --no-restore
 	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, its database schema and first migration, its registration in Program.cs and its endpoint in $(OPENAPI). Run make check."
+
+# The messaging glue code Wolverine writes for the host (it is compiled in, so Release builds need no compiler).
+# A throwaway connection string gives it the shape it has in production; nothing connects.
+GENERATED := backend/src/Api/Api/Internal/Generated
+define CODEGEN
+dotnet build backend/src/Api/Api --configuration Debug --no-restore -p:OpenApiDocumentsDirectory=$(abspath $(ARTIFACTS)/openapi-debug)
+ConnectionStrings__Default='Host=localhost;Database=codegen' Messaging__GeneratedCodePath=$(1) \
+	dotnet backend/src/Api/Api/bin/Debug/net10.0/Api.dll codegen write
+endef
+
+codegen: ## Regenerate the messaging glue code after adding or changing a subscriber (commit the result)
+	rm -rf $(GENERATED)
+	$(call CODEGEN,$(abspath $(GENERATED)))
 
 # Every module with a database has an IDesignTimeDbContextFactory in its Infrastructure project.
 MIGRATION_PROJECTS = $$(find backend/src/Modules -name '*DbContextFactory.cs' -path '*Persistence*' | sed 's|/Persistence/.*||' | sort)
