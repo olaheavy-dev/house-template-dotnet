@@ -90,10 +90,13 @@ module: ## Add a module in its six projects with an example query and test: make
 		/\/\/ make module: endpoints/ { print "app.Map" name "Endpoints();" } { print }' \
 		$(PROGRAM) > $(PROGRAM).new && mv $(PROGRAM).new $(PROGRAM)
 	dotnet restore $(BACKEND) --force-evaluate
+	# The module's first migration, from its example entity.
+	dotnet tool restore
+	dotnet ef migrations add Initial --project backend/src/Modules/$(NAME)/Modules.$(NAME).Infrastructure --output-dir Persistence/Migrations
 	dotnet format $(BACKEND) --include $(PROGRAM) --no-restore
 	# The module's example endpoint changes the OpenAPI document.
 	dotnet build backend/src/Api/Api --configuration Release --no-restore
-	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, its registration in Program.cs and its endpoint in $(OPENAPI). Run make check."
+	@echo "Added module $(NAME): backend/src/Modules/$(NAME), its tests, its database schema and first migration, its registration in Program.cs and its endpoint in $(OPENAPI). Run make check."
 
 # Every module with a database has an IDesignTimeDbContextFactory in its Infrastructure project.
 MIGRATION_PROJECTS = $$(find backend/src/Modules -name '*DbContextFactory.cs' -path '*Persistence*' | sed 's|/Persistence/.*||' | sort)

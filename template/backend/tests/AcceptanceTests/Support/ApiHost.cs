@@ -1,6 +1,5 @@
+using Common.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Modules.Platform.Infrastructure.Persistence;
 using Reqnroll;
 using Testcontainers.PostgreSql;
 
@@ -26,15 +25,8 @@ public sealed class ApiHost
         await _postgres.StartAsync();
         var connectionString = _postgres.GetConnectionString();
 
-        await using (var platform = new PlatformDbContext(
-            new DbContextOptionsBuilder<PlatformDbContext>()
-                .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations", PlatformDbContext.Schema))
-                .Options))
-        {
-            await platform.Database.MigrateAsync();
-        }
-
         _factory = new ApiFactory(connectionString);
+        await _factory.Services.MigrateModuleDatabasesAsync();
     }
 
     private sealed class ApiFactory(string connectionString) : WebApplicationFactory<Program>

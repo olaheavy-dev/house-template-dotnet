@@ -20,6 +20,7 @@ public static class PersistenceServices
     {
         ArgumentNullException.ThrowIfNull(configuration);
         services.AddSingleton<AuditInterceptor>();
+        services.AddSingleton(new ModuleDatabase(typeof(TContext)));
         services.AddDbContext<TContext>((provider, options) => options
             .UseNpgsql(
                 configuration.GetConnectionString(ConnectionName),
