@@ -71,6 +71,24 @@ public sealed class PersistenceTests
     }
 
     [Test]
+    public async Task The_notes_list_has_an_index_on_owner_and_id_newest_first()
+    {
+        await using var connection = new NpgsqlConnection(TestDatabase.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "select indexdef from pg_indexes where schemaname = 'platform' and tablename = 'notes' and indexname <> 'PK_notes'", connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        var indexes = new List<string>();
+        while (await reader.ReadAsync())
+        {
+            indexes.Add(reader.GetString(0));
+        }
+
+        Assert.That(indexes, Has.Count.EqualTo(1));
+        Assert.That(indexes[0], Does.Contain("(\"OwnerId\", \"Id\" DESC)"));
+    }
+
+    [Test]
     public async Task Ready_is_503_naming_the_database_once_it_goes_away()
     {
         // The API needs its database to start (messaging registers the node there), so take it away after.
