@@ -1,3 +1,4 @@
+using Common.Application.Paging;
 using ErrorOr;
 using Immediate.Handlers.Shared;
 using Microsoft.Extensions.Configuration;
@@ -12,17 +13,21 @@ namespace Modules.Platform.UnitTests;
 /// <summary>The note handlers through the module's registration, with the store in memory.</summary>
 public sealed class NoteHandlerTests
 {
-    private readonly InMemoryNoteStore _store = new();
+    // NUnit shares one fixture instance across tests, so each test gets its own store.
+    private InMemoryNoteStore _store = null!;
     private ServiceProvider _services = null!;
 
     [SetUp]
-    public void SetUp() =>
+    public void SetUp()
+    {
+        _store = new InMemoryNoteStore();
         _services = new ServiceCollection()
             .AddLogging()
             .AddSingleton(TimeProvider.System)
             .AddPlatformModule(new ConfigurationBuilder().Build())
             .AddSingleton<INoteStore>(_store)
             .BuildServiceProvider();
+    }
 
     [TearDown]
     public async Task TearDown() => await _services.DisposeAsync();
@@ -79,6 +84,71 @@ public sealed class NoteHandlerTests
         Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.NotFound));
     }
 
+    [Test]
+    public async Task List_walks_the_owners_notes_newest_first_one_page_at_a_time()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            await Create("alice", $"alice {i}");
+        }
+
+        await Create("bob", "bob 0");
+        await Create("bob", "bob 1");
+
+        var seen = new List<Guid>();
+        string? cursor = null;
+        var pages = 0;
+        do
+        {
+            var page = (await List("alice", new PageRequest(2, cursor))).Value;
+            seen.AddRange(page.Items.Select(note => note.Id));
+            cursor = page.NextCursor;
+            pages++;
+        }
+        while (cursor is not null);
+
+        Assert.That(pages, Is.EqualTo(3));
+        Assert.That(seen, Has.Count.EqualTo(5));
+        Assert.That(seen, Is.Unique);
+        Assert.That(seen, Is.Ordered.Descending);
+        Assert.That(seen, Is.EquivalentTo(_store.Notes.Where(note => note.OwnerId == "alice").Select(note => note.Id)));
+    }
+
+    [Test]
+    public async Task List_gives_the_last_page_no_cursor_when_it_ends_exactly_on_the_limit()
+    {
+        await Create("alice", "one");
+        await Create("alice", "two");
+
+        var page = (await List("alice", new PageRequest(2))).Value;
+
+        Assert.That(page.Items, Has.Count.EqualTo(2));
+        Assert.That(page.NextCursor, Is.Null);
+    }
+
+    [Test]
+    public async Task List_refuses_a_damaged_cursor()
+    {
+        var result = await List("alice", new PageRequest(20, "not a cursor!"));
+
+        Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.Validation));
+        Assert.That(result.FirstError.Code, Is.EqualTo("cursor"));
+    }
+
+    [TestCase(0)]
+    [TestCase(101)]
+    public async Task List_refuses_a_limit_outside_1_to_100(int limit)
+    {
+        var result = await List("alice", new PageRequest(limit));
+
+        Assert.That(result.IsError, Is.True);
+        Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.Validation));
+    }
+
+    private ValueTask<ErrorOr<Page<NoteResponse>>> List(string owner, PageRequest page) =>
+        _services.GetRequiredService<IHandler<ListNotesQuery, ErrorOr<Page<NoteResponse>>>>()
+            .HandleAsync(new ListNotesQuery(owner, page), CancellationToken.None);
+
     private ValueTask<ErrorOr<NoteResponse>> Create(string owner, string text) =>
         _services.GetRequiredService<IHandler<CreateNoteCommand, ErrorOr<NoteResponse>>>()
             .HandleAsync(new CreateNoteCommand(owner, text), CancellationToken.None);
@@ -110,6 +180,12 @@ public sealed class NoteHandlerTests
             Published.Add(integrationEvent);
             return ValueTask.CompletedTask;
         }
+
+        public Task<IReadOnlyList<Note>> ListNewestAsync(string ownerId, Guid? before, int take, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Note>>([.. Notes
+                .Where(note => note.OwnerId == ownerId && (before is null || note.Id.CompareTo(before.Value) < 0))
+                .OrderByDescending(note => note.Id)
+                .Take(take)]);
 
         public Task SaveChangesAsync(CancellationToken cancellationToken)
         {

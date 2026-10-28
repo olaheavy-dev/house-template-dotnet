@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Common.Application.Paging;
 using Common.Presentation;
 using ErrorOr;
 using Immediate.Handlers.Shared;
@@ -34,6 +35,20 @@ internal static class NotesEndpoint
             .WithName("CreateNote")
             .WithTags("Notes")
             .Produces<NoteResponse>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        app.MapGet("v1/platform/notes", async (
+                [AsParameters] PageQuery page,
+                ClaimsPrincipal user,
+                IHandler<ListNotesQuery, ErrorOr<Page<NoteResponse>>> handler,
+                CancellationToken cancellationToken) =>
+                ApiResults.Ok(await handler.HandleAsync(new ListNotesQuery(OwnerOf(user), page.ToRequest()), cancellationToken)))
+            .RequirePermission(PlatformPermissions.ReadNotes)
+            .WithName("ListNotes")
+            .WithTags("Notes")
+            .Produces<Page<NoteResponse>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
