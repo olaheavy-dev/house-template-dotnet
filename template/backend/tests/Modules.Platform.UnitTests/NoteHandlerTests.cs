@@ -21,12 +21,14 @@ public sealed class NoteHandlerTests
     public void SetUp()
     {
         _store = new InMemoryNoteStore();
-        _services = new ServiceCollection()
+        var services = new ServiceCollection()
             .AddLogging()
             .AddSingleton(TimeProvider.System)
             .AddPlatformModule(new ConfigurationBuilder().Build())
             .AddSingleton<INoteStore>(_store)
-            .BuildServiceProvider();
+            .AddSingleton<INoteReader>(_store);
+        services.AddHybridCache();
+        _services = services.BuildServiceProvider();
     }
 
     [TearDown]
@@ -145,6 +147,99 @@ public sealed class NoteHandlerTests
         Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.Validation));
     }
 
+    [Test]
+    public async Task Get_reads_the_store_once_however_often_the_note_is_read()
+    {
+        var created = (await Create("alice", "buy milk")).Value;
+
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.That((await Get("alice", created.Id)).Value.Text, Is.EqualTo("buy milk"));
+        }
+
+        Assert.That(_store.FindCalls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Get_shares_one_trip_to_the_store_between_reads_that_arrive_together()
+    {
+        var created = (await Create("alice", "buy milk")).Value;
+        _store.HoldFinds();
+
+        var reads = Enumerable.Range(0, 10).Select(_ => Get("alice", created.Id).AsTask()).ToList();
+        await _store.FindStarted;
+        _store.ReleaseFinds();
+        var results = await Task.WhenAll(reads);
+
+        Assert.That(results.All(result => !result.IsError), Is.True);
+        Assert.That(_store.FindCalls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Get_survives_the_request_that_started_the_shared_lookup_ending_first()
+    {
+        // Two requests miss the same key: the lookup runs once, on the first request's scope. That request
+        // gives up and its scope is disposed while the lookup is still running; the second still needs the answer.
+        var created = (await Create("alice", "buy milk")).Value;
+        var gate = new TaskCompletionSource();
+        var started = new TaskCompletionSource();
+        var stores = new List<ScopedStore>();
+        var services = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton(TimeProvider.System)
+            .AddPlatformModule(new ConfigurationBuilder().Build())
+            .AddScoped<INoteStore>(_ => new ScopedStore(_store, stores))
+            .AddSingleton<INoteReader>(new GatedReader(_store, gate, started));
+        services.AddHybridCache();
+        await using var provider = services.BuildServiceProvider();
+        var first = provider.CreateAsyncScope();
+        var second = provider.CreateAsyncScope();
+        using var giveUp = new CancellationTokenSource();
+
+        var firstGet = first.ServiceProvider.GetRequiredService<IHandler<GetNoteQuery, ErrorOr<NoteResponse>>>()
+            .HandleAsync(new GetNoteQuery("alice", created.Id), giveUp.Token).AsTask();
+        await started.Task;
+        var secondGet = second.ServiceProvider.GetRequiredService<IHandler<GetNoteQuery, ErrorOr<NoteResponse>>>()
+            .HandleAsync(new GetNoteQuery("alice", created.Id), CancellationToken.None).AsTask();
+        await giveUp.CancelAsync();
+        try
+        {
+            await firstGet;
+        }
+        catch (OperationCanceledException)
+        {
+            // The caller that gave up sees its own cancellation.
+        }
+
+        await first.DisposeAsync();
+        gate.SetResult();
+        var result = await secondGet;
+        await second.DisposeAsync();
+
+        Assert.That(result.IsError, Is.False, "the request that stayed should still get its note");
+        Assert.That(result.Value.Text, Is.EqualTo("buy milk"));
+        Assert.That(stores, Is.Empty, "the lookup must not touch a store that belongs to a request");
+    }
+
+    [Test]
+    public async Task Get_still_checks_the_owner_when_the_note_is_cached()
+    {
+        var created = (await Create("alice", "buy milk")).Value;
+        await Get("alice", created.Id);
+
+        var result = await Get("bob", created.Id);
+
+        Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.NotFound));
+    }
+
+    [Test]
+    public async Task Get_reports_a_missing_note_as_not_found()
+    {
+        var result = await Get("alice", Guid.CreateVersion7());
+
+        Assert.That(result.FirstError.Type, Is.EqualTo(ErrorType.NotFound));
+    }
+
     private ValueTask<ErrorOr<Page<NoteResponse>>> List(string owner, PageRequest page) =>
         _services.GetRequiredService<IHandler<ListNotesQuery, ErrorOr<Page<NoteResponse>>>>()
             .HandleAsync(new ListNotesQuery(owner, page), CancellationToken.None);
@@ -157,9 +252,67 @@ public sealed class NoteHandlerTests
         _services.GetRequiredService<IHandler<GetNoteQuery, ErrorOr<NoteResponse>>>()
             .HandleAsync(new GetNoteQuery(owner, id), CancellationToken.None);
 
-    private sealed class InMemoryNoteStore : INoteStore
+    /// <summary>A store tied to one request's scope: once that scope is disposed it can no longer be used.</summary>
+    private sealed class ScopedStore(InMemoryNoteStore inner, List<ScopedStore> created) : INoteStore, IAsyncDisposable
+    {
+        private bool _disposed;
+
+        public ValueTask DisposeAsync()
+        {
+            _disposed = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public Task AddAsync(Note note, CancellationToken cancellationToken)
+        {
+            Touch();
+            return inner.AddAsync(note, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<Note>> ListNewestAsync(string ownerId, Guid? before, int take, CancellationToken cancellationToken)
+        {
+            Touch();
+            return inner.ListNewestAsync(ownerId, before, take, cancellationToken);
+        }
+
+        public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
+            where TEvent : class
+        {
+            Touch();
+            return inner.PublishAsync(integrationEvent, cancellationToken);
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            Touch();
+            return inner.SaveChangesAsync(cancellationToken);
+        }
+
+        private void Touch()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            created.Add(this);
+        }
+    }
+
+    /// <summary>The singleton reader the cache uses: it holds the lookup until released, as a slow database would.</summary>
+    private sealed class GatedReader(InMemoryNoteStore inner, TaskCompletionSource gate, TaskCompletionSource started) : INoteReader
+    {
+        public async Task<Note?> FindAsync(Guid id, CancellationToken cancellationToken)
+        {
+            started.TrySetResult();
+            await gate.Task;
+            return await inner.FindAsync(id, cancellationToken);
+        }
+    }
+
+    private sealed class InMemoryNoteStore : INoteStore, INoteReader
     {
         public List<Note> Notes { get; } = [];
+
+        private readonly TaskCompletionSource _findStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource? _hold;
+        private int _findCalls;
 
         public List<object> Published { get; } = [];
 
@@ -171,8 +324,25 @@ public sealed class NoteHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task<Note?> FindAsync(Guid id, CancellationToken cancellationToken) =>
-            Task.FromResult(Notes.FirstOrDefault(note => note.Id == id));
+        public int FindCalls => _findCalls;
+
+        public Task FindStarted => _findStarted.Task;
+
+        public void HoldFinds() => _hold = new TaskCompletionSource();
+
+        public void ReleaseFinds() => _hold?.SetResult();
+
+        public async Task<Note?> FindAsync(Guid id, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _findCalls);
+            _findStarted.TrySetResult();
+            if (_hold is { } hold)
+            {
+                await hold.Task;
+            }
+
+            return Notes.FirstOrDefault(note => note.Id == id);
+        }
 
         public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
             where TEvent : class

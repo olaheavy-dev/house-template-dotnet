@@ -237,6 +237,14 @@ def test_the_idempotency_key_is_documented_on_the_endpoint_that_takes_it_and_its
     assert "find backend/src -name '*DbContextFactory.cs'" in migrate
 
 
+def test_the_cache_is_optional_shared_and_documented(render):
+    project = render()
+    example = (project / "backend/.env.example").read_text()
+    assert "# ConnectionStrings__Cache=" in example
+    rules = (project / ".claude/rules/dotnet.md").read_text()
+    assert "HybridCache" in rules and "ConnectionStrings:Cache" in rules
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed

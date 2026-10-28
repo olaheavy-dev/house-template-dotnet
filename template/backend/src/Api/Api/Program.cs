@@ -1,5 +1,6 @@
 using Api;
 using Common.Infrastructure;
+using Common.Infrastructure.Caching;
 using Common.Infrastructure.Idempotency;
 using Common.Infrastructure.Messaging;
 using Common.Infrastructure.Persistence;
@@ -17,6 +18,7 @@ builder.AddServiceDefaults();
 builder.AddMessaging(typeof(Program).Assembly);
 builder.Services.AddCommon();
 builder.Services.AddIdempotency(builder.Configuration);
+builder.Services.AddCaching(builder.Configuration);
 builder.Services.AddApiProblemDetails();
 builder.Services.AddApiOpenApi(builder.Configuration);
 builder.Services.AddHardening(builder.Configuration);

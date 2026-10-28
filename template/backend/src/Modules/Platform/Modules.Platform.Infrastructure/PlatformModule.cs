@@ -19,6 +19,7 @@ public static class PlatformModule
         services.AddSingleton(new ServiceName(string.IsNullOrWhiteSpace(title) ? "api" : title));
         services.AddModuleDbContext<PlatformDbContext>(configuration, PlatformDbContext.Schema);
         services.AddScoped<INoteStore, NoteStore>();
+        services.AddSingleton<INoteReader, NoteReader>();
         services.AddScoped<IDataSeeder, PlatformSeeder>();
         services.AddIntegrationEventSubscribers(AssemblyReference.Assembly);
         services.AddValidatorsFromAssembly(Application.AssemblyReference.Assembly, includeInternalTypes: true);
