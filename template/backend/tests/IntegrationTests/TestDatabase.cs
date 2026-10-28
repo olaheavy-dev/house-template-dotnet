@@ -27,7 +27,7 @@ public sealed class TestDatabase
         ConnectionString = _postgres.GetConnectionString();
 
         await using var host = new MigratingApi(ConnectionString);
-        await host.Services.MigrateModuleDatabasesAsync();
+        await host.Services.MigrateDatabaseAsync();
     }
 
     private sealed class MigratingApi(string connectionString) : WebApplicationFactory<Program>

@@ -1,0 +1,13 @@
+# Owned by house-template-dotnet. The image build's context is the project root: send the API's sources
+# and nothing else (no tests, no build output, no local keys).
+*
+!global.json
+!backend/Directory.Build.props
+!backend/Directory.Packages.props
+!backend/nuget.config
+!backend/.editorconfig
+!backend/src/**
+**/bin
+**/obj
+**/.env
+**/.env.*

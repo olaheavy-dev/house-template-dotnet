@@ -5,6 +5,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import re
+import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -192,7 +193,7 @@ def test_the_database_setting_in_env_example_survives_being_sourced_by_the_shell
     line = next(line for line in example.splitlines() if line.startswith("# ConnectionStrings__Default="))
     result = subprocess.run(["bash", "-c", f'{line[2:]}\nprintf %s "$ConnectionStrings__Default"'],
                             capture_output=True, text=True, check=True)
-    assert result.stdout == "Host=localhost;Port=5432;Database=app;Username=postgres;Password=postgres"
+    assert result.stdout == "Host=localhost;Port=5432;Database=app;Username=app;Password=app"
 
 
 def test_a_new_module_gets_a_schema_a_context_and_a_generated_first_migration(render):
@@ -298,6 +299,102 @@ def test_the_add_endpoint_skill_names_files_and_commands_that_exist(render):
         assert (platform / example).is_file(), example
     for name in ("PageRequestValidator", "WithIdempotencyKey", "WithFeatureGate", "RequirePermission", "HybridCache", "NoteCache.KeyFor"):
         assert name in skill, name
+def test_the_image_is_chiseled_non_root_pinned_and_reports_its_commit(render):
+    project = render()
+    dockerfile = (project / "backend/Dockerfile").read_text()
+    froms = [line for line in dockerfile.splitlines() if line.startswith("FROM ")]
+    assert len(froms) == 2 and all("@sha256:" in line for line in froms)
+    assert "dotnet/aspnet:10.0-noble-chiseled@sha256:" in froms[1]
+    assert "ARG GIT_COMMIT" in dockerfile and "ENV GIT_COMMIT=" in dockerfile
+    assert "USER $APP_UID" in dockerfile
+    assert "dotnet restore backend/src/Api/Api/Api.csproj --locked-mode" in dockerfile
+    assert 'HEALTHCHECK' in dockerfile and '"healthcheck"' in dockerfile
+    ignore = (project / ".dockerignore").read_text()
+    assert ignore.startswith("# Owned by house-template-dotnet") and "*\n" in ignore and "!backend/src/**" in ignore
+    assert "tests" not in [line.lstrip("!") for line in ignore.splitlines() if line.startswith("!")]
+
+
+def test_compose_runs_the_backend_as_production_would_on_loopback_with_everything_pinned(render):
+    project = render()
+    compose = yaml.safe_load((project / "backend/compose.yaml").read_text())
+    services = compose["services"]
+    assert set(services) == {"db", "keycloak", "dashboard", "valkey", "migrate", "api"}
+    for name in ("db", "keycloak", "dashboard", "valkey"):
+        assert "@sha256:" in services[name]["image"], name
+    for name, service in services.items():
+        for port in service.get("ports", []):
+            assert str(port).startswith("127.0.0.1:"), (name, port)
+    api = services["api"]
+    # The host gives requests in flight 30 seconds after SIGTERM; compose must wait at least that long.
+    assert int(api["stop_grace_period"].rstrip("s")) >= 30
+    assert api["depends_on"]["migrate"]["condition"] == "service_completed_successfully"
+    assert services["migrate"]["command"] == ["migrate"]
+    assert services["migrate"]["restart"] == "no"
+    assert services["valkey"]["profiles"] == ["cache"]
+    build = services["api"]["build"]
+    assert build["dockerfile"] == "backend/Dockerfile" and build["context"] == ".."
+    environment = services["api"]["environment"]
+    # An env_file overrides the image's own setting, so Production is set here, where it wins over backend/.env.
+    assert environment["ASPNETCORE_ENVIRONMENT"] == "Production"
+    assert api["depends_on"]["dashboard"]["condition"] == "service_started", "make up starts only the api and what it depends on"
+    assert environment["Auth__MetadataAddress"].startswith("http://keycloak:8080/")
+    assert environment["Auth__Issuer"].startswith("http://localhost:")
+    keycloak = services["keycloak"]
+    assert "--import-realm" in keycloak["command"]
+    assert any(volume.startswith("./keycloak/realm.json:/opt/keycloak/data/import/") for volume in keycloak["volumes"])
+
+
+def test_a_copy_of_env_example_cannot_turn_the_compose_api_into_a_development_server(render):
+    project = render()
+    if not shutil.which("docker"):
+        pytest.skip("needs docker compose to resolve the file")
+    # backend/.env.example says Development (for make dev-backend); copied to backend/.env it is loaded into the container.
+    (project / "backend/.env").write_text("ASPNETCORE_ENVIRONMENT=Development\nConnectionStrings__Default=Host=elsewhere\n")
+    result = subprocess.run(["docker", "compose", "-f", "backend/compose.yaml", "config", "--format", "json"],
+                            cwd=project, capture_output=True, text=True, check=True)
+    api = json.loads(result.stdout)["services"]["api"]["environment"]
+    assert api["ASPNETCORE_ENVIRONMENT"] == "Production"
+    # The settings the compose file sets itself win over backend/.env.
+    assert api["ConnectionStrings__Default"].startswith("Host=db;")
+
+
+def test_the_smoke_test_has_its_own_compose_project_and_ports(render):
+    script = (render() / "tools/smoke-compose.sh").read_text()
+    # It deletes volumes when it ends: they must be its own, never those of a stack in use.
+    assert 'project="$(basename "$PWD"' in script and '-smoke"' in script
+    assert 'compose() { docker compose -p "$project" "$@"; }' in script
+    assert [line for line in script.splitlines() if "docker compose" in line and not line.startswith("compose()")] == []
+    for port in ("API_PORT", "KEYCLOAK_PORT", "DB_PORT", "DASHBOARD_PORT"):
+        assert f"{port}=1" in script, port
+
+
+def test_compose_is_valid_and_make_has_targets_to_run_it(render):
+    project = render()
+    if shutil.which("docker"):
+        result = subprocess.run(["docker", "compose", "-f", "backend/compose.yaml", "config", "--quiet"], cwd=project, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+    assert "docker compose up -d --build --wait api" in make_dry_run(project, "up")
+    # GIT_COMMIT goes to Compose only: exported by make, it would reach the tests and change what they see.
+    assert "export GIT_COMMIT" not in (project / "mk/dotnet.mk").read_text()
+    assert "docker compose up -d --wait db keycloak dashboard" in make_dry_run(project, "db-up")
+    assert "docker compose build api" in make_dry_run(project, "image")
+    assert "docker compose down" in make_dry_run(project, "down")
+
+
+def test_a_workflow_runs_the_smoke_test_and_the_image_files_are_template_owned(render):
+    project = render()
+    workflow = yaml.safe_load((project / ".github/workflows/image.yml").read_text())
+    steps = workflow["jobs"]["smoke"]["steps"]
+    assert any(step.get("run") == "make smoke" for step in steps)
+    assert all("@" in step["uses"] and len(step["uses"].split("@")[1].split(" ")[0]) == 40 for step in steps if "uses" in step)
+    assert workflow["permissions"] == {} and workflow["jobs"]["smoke"]["permissions"] == {"contents": "read"}
+    assert "bash tools/smoke-compose.sh" in make_dry_run(project, "smoke")
+    script = (project / "tools/smoke-compose.sh").read_text()
+    assert script.startswith("#!/usr/bin/env bash") and "set -euo pipefail" in script
+    owned = (project / ".github/template-owned/dotnet.txt").read_text().splitlines()
+    for path in ("backend/Dockerfile", "backend/compose.yaml", ".dockerignore", "tools/smoke-compose.sh",
+                 ".github/workflows/image.yml", ".claude/skills/add-endpoint/SKILL.md"):
+        assert path in owned, path
 
 
 def test_make_seed_runs_the_seeders_in_development(render):

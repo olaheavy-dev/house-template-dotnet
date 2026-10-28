@@ -13,6 +13,12 @@ using Modules.Platform.Presentation;
 using Scalar.AspNetCore;
 using ServiceDefaults;
 
+// `Api.dll healthcheck` is the image's HEALTHCHECK: it needs nothing but the running API.
+if (args is ["healthcheck"])
+{
+    return await HealthProbe.RunAsync(Environment.GetEnvironmentVariable("ASPNETCORE_URLS"));
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -30,6 +36,14 @@ builder.Services.AddPlatformModule(builder.Configuration);
 // make module: registrations
 
 var app = builder.Build();
+
+// `Api.dll migrate` brings the database up to date (every module's tables and the messaging tables) and exits:
+// a deploy runs it once, from this same image, before the new version starts.
+if (args is ["migrate"])
+{
+    await app.Services.MigrateDatabaseAsync();
+    return 0;
+}
 
 // `make seed` runs the modules' seeders, development data only, and exits.
 if (args is ["seed"])

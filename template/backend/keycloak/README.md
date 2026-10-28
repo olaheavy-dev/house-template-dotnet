@@ -22,6 +22,10 @@ A permission is a role of the `api` client (`me.read`). The API reads them from 
 add the role under `roles.client.api`, give it to users (add it to `default-roles-app` when every
 user should have it), and declare it beside the module's endpoints (`PlatformPermissions`).
 
+## In Compose
+
+`docker compose up -d --wait keycloak` (or `make db-up` / `make up`) runs this Keycloak at http://localhost:8080 with this realm imported (admin console: `admin` / `admin`). The import happens only when the realm does not exist yet, so after editing `realm.json` throw the old one away: `docker compose rm -sfv keycloak && docker compose up -d keycloak`. Tokens name `http://localhost:8080/realms/app` as their issuer; the API in Compose reads Keycloak's keys at `keycloak:8080` (`Auth__MetadataAddress`).
+
 ## A token by hand
 
 ```sh

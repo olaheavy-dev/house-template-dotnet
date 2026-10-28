@@ -26,7 +26,7 @@ public sealed class ApiHost
         var connectionString = _postgres.GetConnectionString();
 
         _factory = new ApiFactory(connectionString);
-        await _factory.Services.MigrateModuleDatabasesAsync();
+        await _factory.Services.MigrateDatabaseAsync();
     }
 
     private sealed class ApiFactory(string connectionString) : WebApplicationFactory<Program>

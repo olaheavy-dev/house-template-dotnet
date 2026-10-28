@@ -1,9 +1,11 @@
 using System.Reflection;
 using Common.Infrastructure.Persistence;
+using JasperFx;
 using JasperFx.CodeGeneration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.Postgresql;
@@ -34,6 +36,7 @@ public static class MessagingServices
         ArgumentNullException.ThrowIfNull(hostAssembly);
         var connectionString = builder.Configuration.GetConnectionString(PersistenceServices.ConnectionName);
         var generatedCodePath = builder.Configuration["Messaging:GeneratedCodePath"];
+        var isDevelopment = builder.Environment.IsDevelopment();
         builder.Host.UseWolverine(options =>
         {
             // Without a database there is nothing to make durable. The build starts the app to write the OpenAPI
@@ -43,6 +46,9 @@ public static class MessagingServices
                 options.PersistMessagesWithPostgresql(connectionString, Schema);
             }
 
+            // The tables are created and updated by the migrate step (Api.dll migrate), not by whatever starts first:
+            // in production the API's database user needs no rights to change the schema.
+            options.AutoBuildMessageStorageOnStartup = isDevelopment ? AutoCreate.CreateOrUpdate : AutoCreate.None;
             options.UseEntityFrameworkCoreTransactions();
             options.Policies.UseDurableLocalQueues();
             // The generated code is compiled into the host, which is where Wolverine looks for it.
