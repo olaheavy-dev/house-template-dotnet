@@ -7,9 +7,9 @@ public static class PlatformEndpoints
 {
     public static IEndpointRouteBuilder MapPlatformEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapMe();
         app.MapPing();
         app.MapPingStream();
-        app.MapMe();
         return app;
     }
 }
