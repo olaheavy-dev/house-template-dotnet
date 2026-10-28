@@ -21,7 +21,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             note.HasKey(entry => entry.Id);
             note.Property(entry => entry.OwnerId).HasMaxLength(200).IsRequired();
             note.Property(entry => entry.Text).HasMaxLength(Note.MaxLength).IsRequired();
-            note.HasIndex(entry => entry.OwnerId);
+            // Serves the owner's list: the owner filter, the cursor boundary and the newest-first order from one index.
+            note.HasIndex(entry => new { entry.OwnerId, entry.Id }).IsDescending(false, true);
         });
         modelBuilder.ApplyEntityConventions();
     }
