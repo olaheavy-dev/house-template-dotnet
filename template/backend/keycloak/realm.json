@@ -32,6 +32,7 @@
           ],
           "client": {
             "api": [
+              "flags.read",
               "me.read",
               "notes.read",
               "notes.write"
@@ -45,6 +46,10 @@
         {
           "name": "me.read",
           "description": "See your own account (GET /v1/me). Every user has it through the default roles."
+        },
+        {
+          "name": "flags.read",
+          "description": "See the public feature flags as you are shown them (GET /v1/flags). Every user has it through the default roles."
         },
         {
           "name": "notes.read",

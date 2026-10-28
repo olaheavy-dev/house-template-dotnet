@@ -3,5 +3,6 @@
     <ProjectReference Include="..\Common.Application\Common.Application.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="JetBrains.Annotations" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
   </ItemGroup>
 </Project>

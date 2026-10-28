@@ -56,7 +56,7 @@ public sealed class KeycloakTests
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(Guid.TryParse(me.RootElement.GetProperty("id").GetString(), out _), Is.True, "the id is Keycloak's subject");
-        Assert.That(me.RootElement.GetProperty("permissions").EnumerateArray().Select(p => p.GetString()), Is.EqualTo(new[] { "me.read", "notes.read", "notes.write" }));
+        Assert.That(me.RootElement.GetProperty("permissions").EnumerateArray().Select(p => p.GetString()), Is.EqualTo(new[] { "flags.read", "me.read", "notes.read", "notes.write" }));
     }
 
     [Test]

@@ -31,8 +31,14 @@ public sealed class ApiHost
 
     private sealed class ApiFactory(string connectionString) : WebApplicationFactory<Program>
     {
-        protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder) =>
+        protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+        {
             builder.UseSetting("ConnectionStrings:Default", connectionString);
+            // What appsettings.json carries in a generated project (the template ships it as appsettings.json.jinja).
+            builder.UseSetting("feature_management:feature_flags:0:id", "notes-list");
+            builder.UseSetting("feature_management:feature_flags:0:enabled", "true");
+            builder.UseSetting("Flags:Public:0", "notes-list");
+        }
     }
 
     [AfterTestRun]

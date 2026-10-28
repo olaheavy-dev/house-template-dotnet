@@ -8,6 +8,7 @@ using JetBrains.Annotations;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.FeatureManagement.AspNetCore;
 using Modules.Platform.Application.Notes;
 
 namespace Modules.Platform.Presentation;
@@ -53,7 +54,10 @@ internal static class NotesEndpoint
             .Produces<Page<NoteResponse>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            // Last: it returns the plain builder. A flag that is off answers 404.
+            .WithFeatureGate(PlatformFlags.NotesList);
 
         app.MapGet("v1/platform/notes/{id:guid}", async (
                 Guid id,
