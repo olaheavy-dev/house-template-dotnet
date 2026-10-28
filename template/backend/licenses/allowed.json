@@ -4,5 +4,6 @@
   "BSD-2-Clause",
   "BSD-3-Clause",
   "ISC",
-  "0BSD"
+  "0BSD",
+  "PostgreSQL"
 ]

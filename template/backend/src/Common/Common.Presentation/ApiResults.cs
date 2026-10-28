@@ -38,6 +38,13 @@ public static class ApiResults
     public static IResult Ok<TValue>(ErrorOr<TValue> result) =>
         result.Match(value => Results.Ok(value), Problem);
 
+    /// <summary>201 Created with the value and a Location, or the errors as a problem.</summary>
+    public static IResult Created<TValue>(ErrorOr<TValue> result, Func<TValue, string> location)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        return result.Match(value => Results.Created(new Uri(location(value), UriKind.Relative), value), Problem);
+    }
+
     /// <summary>204 No Content, or the errors as a problem.</summary>
     public static IResult NoContent(ErrorOr<Success> result) =>
         result.Match(_ => Results.NoContent(), Problem);

@@ -156,12 +156,56 @@ def test_mk_file_adds_its_targets_to_the_base_aggregates(render):
     assert "FAST_CHECKS += check-fast-dotnet" in mk
 
 
-def make_dry_run(project, target):
+def make_dry_run(project, target, *variables):
     makefile = "include mk/dotnet.mk\n"
     (project / "Probe.mk").write_text(makefile)
-    result = subprocess.run(["make", "-n", "-f", "Probe.mk", target], cwd=project,
+    result = subprocess.run(["make", "-n", "-f", "Probe.mk", target, *variables], cwd=project,
                             capture_output=True, text=True, check=True)
     return result.stdout
+
+
+def test_make_migrate_applies_each_modules_migrations_to_the_configured_database(render):
+    migrate = make_dry_run(render(), "migrate")
+    assert "ConnectionStrings__Default" in migrate
+    assert "dotnet ef database update --project $project --connection" in migrate
+    assert "*DbContextFactory.cs" in migrate
+
+
+def test_make_migrate_bundle_builds_one_executable_per_module_and_puts_the_lock_files_back(render):
+    bundle = make_dry_run(render(), "migrate-bundle")
+    assert "dotnet ef migrations bundle --project $project" in bundle
+    # A name with a hyphen breaks the generated bundle project's namespace.
+    assert "migrate_$module" in bundle
+    assert "dotnet restore backend/Backend.slnx --force-evaluate" in bundle
+
+
+def test_make_migrate_bundle_is_self_contained_for_the_runtime_asked_for(render):
+    project = render()
+    assert "--self-contained --target-runtime linux-x64" in make_dry_run(project, "migrate-bundle", "RUNTIME=linux-x64")
+    # Without a runtime the bundle needs .NET on the machine that runs it.
+    assert "--self-contained" not in make_dry_run(project, "migrate-bundle")
+
+
+def test_the_database_setting_in_env_example_survives_being_sourced_by_the_shell(render):
+    # make migrate, seed and dev-backend source backend/.env; an unquoted semicolon would split the value.
+    example = (render() / "backend/.env.example").read_text()
+    line = next(line for line in example.splitlines() if line.startswith("# ConnectionStrings__Default="))
+    result = subprocess.run(["bash", "-c", f'{line[2:]}\nprintf %s "$ConnectionStrings__Default"'],
+                            capture_output=True, text=True, check=True)
+    assert result.stdout == "Host=localhost;Port=5432;Database=app;Username=postgres;Password=postgres"
+
+
+def test_make_seed_runs_the_seeders_in_development(render):
+    seed = make_dry_run(render(), "seed")
+    assert "ASPNETCORE_ENVIRONMENT=Development" in seed
+    assert "dotnet run --project backend/src/Api/Api -- seed" in seed
+
+
+def test_the_platform_module_ships_its_first_migration_and_the_ef_tool(render):
+    project = render()
+    migrations = list((project / "backend/src/Modules/Platform/Modules.Platform.Infrastructure/Persistence/Migrations").glob("*_Initial.cs"))
+    assert len(migrations) == 1
+    assert "dotnet-ef" in json.loads((project / ".config/dotnet-tools.json").read_text())["tools"]
 
 
 def test_make_check_restores_locked_and_fails_on_format_build_or_tests(render):
@@ -320,7 +364,7 @@ def test_every_licence_override_matches_the_pinned_version():
 
 def test_the_tools_are_pinned_without_roll_forward():
     tools = json.loads((TEMPLATE / ".config/dotnet-tools.json").read_text())["tools"]
-    assert set(tools) == {"jetbrains.resharper.globaltools", "nuget-license"}
+    assert set(tools) == {"jetbrains.resharper.globaltools", "nuget-license", "dotnet-ef"}
     assert all(tool["rollForward"] is False and re.fullmatch(r"[\d.]+", tool["version"]) for tool in tools.values())
 
 

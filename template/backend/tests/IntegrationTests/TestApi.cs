@@ -27,6 +27,7 @@ internal sealed class TestApi(
             builder.UseEnvironment(environment);
         }
 
+        builder.UseSetting("ConnectionStrings:Default", TestDatabase.ConnectionString);
         foreach (var (key, value) in settings ?? new Dictionary<string, string>())
         {
             builder.UseSetting(key, value);

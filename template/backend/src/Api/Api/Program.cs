@@ -1,5 +1,6 @@
 using Api;
 using Common.Infrastructure;
+using Common.Infrastructure.Persistence;
 using Common.Presentation;
 using Modules.Platform.Infrastructure;
 using Modules.Platform.Presentation;
@@ -19,6 +20,18 @@ builder.Services.AddPlatformModule(builder.Configuration);
 // make module: registrations
 
 var app = builder.Build();
+
+// `make seed` runs the modules' seeders, development data only, and exits.
+if (args is ["seed"])
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("Seeding is for Development only.");
+    }
+
+    await app.Services.RunSeedersAsync(CancellationToken.None);
+    return;
+}
 
 app.UseServiceDefaults();
 app.UseSecurityHeaders();

@@ -1,7 +1,10 @@
+using Common.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Platform.Application;
+using Modules.Platform.Application.Notes;
+using Modules.Platform.Infrastructure.Persistence;
 
 namespace Modules.Platform.Infrastructure;
 
@@ -13,6 +16,9 @@ public static class PlatformModule
         ArgumentNullException.ThrowIfNull(configuration);
         var title = configuration["Api:Title"];
         services.AddSingleton(new ServiceName(string.IsNullOrWhiteSpace(title) ? "api" : title));
+        services.AddModuleDbContext<PlatformDbContext>(configuration, PlatformDbContext.Schema);
+        services.AddScoped<INoteStore, NoteStore>();
+        services.AddScoped<IDataSeeder, PlatformSeeder>();
         services.AddValidatorsFromAssembly(Application.AssemblyReference.Assembly, includeInternalTypes: true);
         return services.AddModulesPlatformApplicationHandlers();
     }

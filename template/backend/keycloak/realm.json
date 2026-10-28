@@ -32,7 +32,9 @@
           ],
           "client": {
             "api": [
-              "me.read"
+              "me.read",
+              "notes.read",
+              "notes.write"
             ]
           }
         }
@@ -43,6 +45,14 @@
         {
           "name": "me.read",
           "description": "See your own account (GET /v1/me). Every user has it through the default roles."
+        },
+        {
+          "name": "notes.read",
+          "description": "Read your own notes (GET /v1/platform/notes/{id}). Every user has it through the default roles."
+        },
+        {
+          "name": "notes.write",
+          "description": "Write notes (POST /v1/platform/notes). Every user has it through the default roles."
         }
       ]
     }
