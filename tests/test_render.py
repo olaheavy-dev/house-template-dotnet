@@ -334,11 +334,38 @@ def test_compose_runs_the_backend_as_production_would_on_loopback_with_everythin
     build = services["api"]["build"]
     assert build["dockerfile"] == "backend/Dockerfile" and build["context"] == ".."
     environment = services["api"]["environment"]
+    # An env_file overrides the image's own setting, so Production is set here, where it wins over backend/.env.
+    assert environment["ASPNETCORE_ENVIRONMENT"] == "Production"
+    assert api["depends_on"]["dashboard"]["condition"] == "service_started", "make up starts only the api and what it depends on"
     assert environment["Auth__MetadataAddress"].startswith("http://keycloak:8080/")
     assert environment["Auth__Issuer"].startswith("http://localhost:")
     keycloak = services["keycloak"]
     assert "--import-realm" in keycloak["command"]
     assert any(volume.startswith("./keycloak/realm.json:/opt/keycloak/data/import/") for volume in keycloak["volumes"])
+
+
+def test_a_copy_of_env_example_cannot_turn_the_compose_api_into_a_development_server(render):
+    project = render()
+    if not shutil.which("docker"):
+        pytest.skip("needs docker compose to resolve the file")
+    # backend/.env.example says Development (for make dev-backend); copied to backend/.env it is loaded into the container.
+    (project / "backend/.env").write_text("ASPNETCORE_ENVIRONMENT=Development\nConnectionStrings__Default=Host=elsewhere\n")
+    result = subprocess.run(["docker", "compose", "-f", "backend/compose.yaml", "config", "--format", "json"],
+                            cwd=project, capture_output=True, text=True, check=True)
+    api = json.loads(result.stdout)["services"]["api"]["environment"]
+    assert api["ASPNETCORE_ENVIRONMENT"] == "Production"
+    # The settings the compose file sets itself win over backend/.env.
+    assert api["ConnectionStrings__Default"].startswith("Host=db;")
+
+
+def test_the_smoke_test_has_its_own_compose_project_and_ports(render):
+    script = (render() / "tools/smoke-compose.sh").read_text()
+    # It deletes volumes when it ends: they must be its own, never those of a stack in use.
+    assert 'project="$(basename "$PWD"' in script and '-smoke"' in script
+    assert 'compose() { docker compose -p "$project" "$@"; }' in script
+    assert [line for line in script.splitlines() if "docker compose" in line and not line.startswith("compose()")] == []
+    for port in ("API_PORT", "KEYCLOAK_PORT", "DB_PORT", "DASHBOARD_PORT"):
+        assert f"{port}=1" in script, port
 
 
 def test_compose_is_valid_and_make_has_targets_to_run_it(render):

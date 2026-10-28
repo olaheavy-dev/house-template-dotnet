@@ -99,6 +99,10 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-local}
     command: ["migrate"]
     environment: &api-environment
+      # Production, whatever backend/.env says: Compose lets an env_file override the image's own setting, and a
+      # copy of .env.example (written for `make dev-backend`) would turn on the X-Dev-User stand-in and let the
+      # API change the schema. These values win over the env_file.
+      ASPNETCORE_ENVIRONMENT: Production
       # Service names, not localhost: these run inside Compose's network.
       ConnectionStrings__Default: Host=db;Database=app;Username=app;Password=app
       ConnectionStrings__Cache: ${CACHE_CONNECTION:-}
@@ -131,6 +135,9 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      # The API exports its traces and logs here; started with it, so `make up` shows them.
+      dashboard:
+        condition: service_started
     # The host gives requests in flight 30 seconds to finish after SIGTERM: stop waits a little longer.
     stop_grace_period: 35s
     develop:
