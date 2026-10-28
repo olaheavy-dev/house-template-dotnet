@@ -266,6 +266,30 @@ def test_the_compiler_reference_does_not_make_the_lock_file_depend_on_the_config
     assert "--configuration Release -p:RestoreLockedMode=true" in check
 
 
+def test_the_add_endpoint_skill_names_files_and_commands_that_exist(render):
+    project = render()
+    skill = (project / ".claude/skills/add-endpoint/SKILL.md").read_text()
+    assert skill.startswith("---\nname: add-endpoint\n")
+    targets = {line.split(":")[0] for mk in (project / "mk").glob("*.mk") for line in mk.read_text().splitlines() if line and not line.startswith(("\t", "#", " "))}
+    # `make check` is base's umbrella; this layer's part of it is check-dotnet.
+    for target, defined in (("openapi-backend", "openapi-backend"), ("codegen", "codegen"), ("migrate", "migrate"), ("check", "check-dotnet")):
+        assert f"`make {target}`" in skill and defined in targets, target
+    platform = project / "backend/src/Modules/Platform"
+    for example in (
+        "Modules.Platform.Presentation/NotesEndpoint.cs",
+        "Modules.Platform.Presentation/PlatformEndpoints.cs",
+        "Modules.Platform.Presentation/PlatformPermissions.cs",
+        "Modules.Platform.Presentation/PlatformFlags.cs",
+        "Modules.Platform.Application/Notes/INoteStore.cs",
+        "Modules.Platform.Application/Notes/INoteReader.cs",
+        "Modules.Platform.Application/Notes/NoteCache.cs",
+        "Modules.Platform.Application/Notes/GetNote.cs",
+    ):
+        assert (platform / example).is_file(), example
+    for name in ("PageRequestValidator", "WithIdempotencyKey", "WithFeatureGate", "RequirePermission", "HybridCache", "NoteCache.KeyFor"):
+        assert name in skill, name
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed
