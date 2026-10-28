@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
+    <!-- One lock file for every configuration: the package is always restored, but only Debug takes its assemblies.
+         (A reference that exists only in Debug gives Debug and Release different lock files, so any Release build
+         that restores rewrites the committed one and the next locked restore fails.) -->
+    <RuntimeCompilationAssets Condition="'$(Configuration)' == 'Debug'">all</RuntimeCompilationAssets>
+    <RuntimeCompilationAssets Condition="'$(Configuration)' != 'Debug'">none</RuntimeCompilationAssets>
     <!-- The build writes the OpenAPI document to backend/openapi/v1.json, which is committed: the
          Next.js layer generates its client types from it. make check builds it elsewhere and fails
          if the committed one differs. -->
@@ -39,7 +44,7 @@
     <PackageReference Include="Scalar.AspNetCore" />
     <!-- Writes the messaging glue code (make codegen) and lets Development generate it on the fly; Release builds
          compile the committed code instead and ship no compiler. -->
-    <PackageReference Include="WolverineFx.RuntimeCompilation" Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" IncludeAssets="$(RuntimeCompilationAssets)" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Common\Common.Infrastructure\Common.Infrastructure.csproj" />

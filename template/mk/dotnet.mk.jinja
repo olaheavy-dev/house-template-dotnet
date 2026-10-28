@@ -45,7 +45,8 @@ install-dotnet: ## Restore the backend's tools and packages from their lock file
 
 check-dotnet: install-dotnet ## Backend: formatting, a build with every analyzer warning as an error, the OpenAPI document up to date, licences, InspectCode at zero issues, and the tests with coverage
 	dotnet format $(BACKEND) --verify-no-changes --no-restore
-	dotnet build $(BACKEND) --configuration Release --no-restore -p:OpenApiDocumentsDirectory=$(abspath $(dir $(OPENAPI_BUILT)))
+	# Restores for Release (locked) rather than reusing Debug's: Release must build without the code-generation compiler.
+	dotnet build $(BACKEND) --configuration Release -p:RestoreLockedMode=true -p:OpenApiDocumentsDirectory=$(abspath $(dir $(OPENAPI_BUILT)))
 	@cmp -s $(OPENAPI) $(OPENAPI_BUILT) || { echo "$(OPENAPI) is out of date: run make openapi-backend and commit it."; \
 		diff -u $(OPENAPI) $(OPENAPI_BUILT) | head -40; exit 1; }
 	$(LICENSES)
@@ -109,7 +110,7 @@ module: ## Add a module in its six projects with an example query and test: make
 # A throwaway connection string gives it the shape it has in production; nothing connects.
 GENERATED := backend/src/Api/Api/Internal/Generated
 define CODEGEN
-dotnet build backend/src/Api/Api --configuration Debug --no-restore -p:OpenApiDocumentsDirectory=$(abspath $(ARTIFACTS)/openapi-debug)
+dotnet build backend/src/Api/Api --configuration Debug -p:RestoreLockedMode=true -p:OpenApiDocumentsDirectory=$(abspath $(ARTIFACTS)/openapi-debug)
 ConnectionStrings__Default='Host=localhost;Database=codegen' Messaging__GeneratedCodePath=$(1) \
 	dotnet backend/src/Api/Api/bin/Debug/net10.0/Api.dll codegen write
 # Wolverine leaves trailing spaces; base's pre-commit would trim them, and the check would then see a difference.
