@@ -28,6 +28,10 @@ internal sealed class TestApi(
         }
 
         builder.UseSetting("ConnectionStrings:Default", TestDatabase.ConnectionString);
+        // What appsettings.json carries in a generated project (the template ships it as appsettings.json.jinja).
+        builder.UseSetting("feature_management:feature_flags:0:id", "notes-list");
+        builder.UseSetting("feature_management:feature_flags:0:enabled", "true");
+        builder.UseSetting("Flags:Public:0", "notes-list");
         foreach (var (key, value) in settings ?? new Dictionary<string, string>())
         {
             builder.UseSetting(key, value);

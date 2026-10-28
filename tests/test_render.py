@@ -243,6 +243,17 @@ def test_the_cache_is_optional_shared_and_documented(render):
     assert "# ConnectionStrings__Cache=" in example
     rules = (project / ".claude/rules/dotnet.md").read_text()
     assert "HybridCache" in rules and "ConnectionStrings:Cache" in rules
+def test_feature_flags_ship_with_the_example_flag_the_public_list_and_the_permission(render):
+    project = render()
+    settings = json.loads((project / "backend/src/Api/Api/appsettings.json").read_text())
+    flags = {flag["id"]: flag for flag in settings["feature_management"]["feature_flags"]}
+    assert flags["notes-list"]["enabled"] is True
+    assert settings["Flags"]["Public"] == ["notes-list"]
+    document = json.loads((project / "backend/openapi/v1.json").read_text())
+    assert "get" in document["paths"]["/v1/flags"]
+    realm = json.loads((project / "backend/keycloak/realm.json").read_text())
+    assert "flags.read" in {role["name"] for role in realm["roles"]["client"]["api"]}
+    assert "feature_management__feature_flags__0__enabled" in (project / "backend/.env.example").read_text()
 
 
 def test_make_seed_runs_the_seeders_in_development(render):

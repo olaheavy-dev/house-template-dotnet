@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Common.Application;
 using Microsoft.AspNetCore.Builder;
 
 namespace Common.Presentation;
@@ -12,9 +13,9 @@ namespace Common.Presentation;
 public static class SignedInUser
 {
     /// <summary>The user's stable id: the identity provider's subject, never an email.</summary>
-    public const string IdClaim = "sub";
+    public const string IdClaim = UserClaims.Id;
 
-    public const string PermissionClaim = "permission";
+    public const string PermissionClaim = UserClaims.Permission;
 
     /// <summary>Every permission. Only the development stand-in user holds it; never read from a token.</summary>
     public const string AllPermissions = "*";

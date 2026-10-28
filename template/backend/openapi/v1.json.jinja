@@ -280,6 +280,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -344,6 +354,46 @@
           }
         }
       }
+    },
+    "/v1/flags": {
+      "get": {
+        "tags": [
+          "Flags"
+        ],
+        "operationId": "ListFlags",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -359,6 +409,43 @@
           }
         },
         "description": "The body of POST /v1/platform/notes."
+      },
+      "FlagResponse": {
+        "required": [
+          "key",
+          "enabled",
+          "variant"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "variant": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One flag as the signed-in user sees it: whether it is on for them and the variant they were given. Never the rules."
+      },
+      "FlagsResponse": {
+        "required": [
+          "flags"
+        ],
+        "type": "object",
+        "properties": {
+          "flags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagResponse"
+            }
+          }
+        }
       },
       "HealthResponse": {
         "required": [
@@ -594,6 +681,9 @@
     },
     {
       "name": "Notes"
+    },
+    {
+      "name": "Flags"
     }
   ]
 }

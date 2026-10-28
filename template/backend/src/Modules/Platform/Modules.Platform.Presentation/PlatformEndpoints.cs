@@ -11,6 +11,7 @@ public static class PlatformEndpoints
         app.MapPing();
         app.MapPingStream();
         app.MapNotes();
+        app.MapFlags();
         return app;
     }
 }
