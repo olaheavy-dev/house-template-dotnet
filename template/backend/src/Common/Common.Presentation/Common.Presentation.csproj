@@ -2,6 +2,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Common.Application\Common.Application.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Carter" />
   </ItemGroup>
 </Project>

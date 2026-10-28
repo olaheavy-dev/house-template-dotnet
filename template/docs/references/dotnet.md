@@ -28,7 +28,7 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | Security headers | NetEscapades.AspNetCore.SecurityHeaders 1.3.1 | https://github.com/andrewlock/NetEscapades.AspNetCore.SecurityHeaders |
 | JetBrains.Annotations (`[UsedImplicitly]` for what a framework uses) | 2026.2.0 | https://www.jetbrains.com/help/resharper/Reference__Code_Annotation_Attributes.html |
 | Scalar (API reference, development only) | Scalar.AspNetCore 2.18.3 | https://scalar.com/products/api-references/integrations/aspnetcore/integration |
-| Carter | 10.0.0 | https://github.com/CarterCommunity/Carter |
+| Minimal APIs (endpoints) | ASP.NET Core | https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis/route-handlers |
 | ErrorOr | 2.1.1 | https://github.com/amantinband/error-or |
 | Immediate.Handlers | 4.2.0 | https://github.com/ImmediatePlatform/Immediate.Handlers |
 | FluentValidation | 12.2.0 | https://docs.fluentvalidation.net |
@@ -57,7 +57,6 @@ Checked 27 Oct 2026; review this table whenever Dependabot proposes a major upgr
 | ErrorOr | 12.9 million | one main author | 2.1.1, May 2026 | MIT (no licence metadata in the package; see `backend/licenses/overrides.json`) | Copy its MIT source into Common.Domain with the same API |
 | Mono.Cecil | 116 million | jbevain | 0.11.6, **Oct 2024** (accepted until Apr 2027) | MIT | Goes with ArchUnitNET |
 | TngTech.ArchUnitNET | 10.6 million | TNG | 0.13.5, Oct 2026 | Apache-2.0 | Tests only; the rules are plain C# over its model |
-| Carter | 5.1 million | 54 contributors | 10.0.0, **Nov 2025** | MIT | Each `ICarterModule` becomes a `MapGroup` extension method |
 | Immediate.Handlers | 0.29 million | 9 contributors | 4.2.0, Sep 2026 | MIT | Mediator 3.x, or a small in-house dispatcher; handlers touch the package only through `[Handler]` and `IHandler<,>` |
 | OpenTelemetry.* | 508 million | OpenTelemetry (CNCF) | 1.20.1, Oct 2026 | Apache-2.0 | The standard; exporting is OTLP, so any backend works |
 | Microsoft.Extensions.Http.Resilience | 180 million | Microsoft | 10.11.0, Oct 2026 | MIT | Built on Polly; or Polly directly |

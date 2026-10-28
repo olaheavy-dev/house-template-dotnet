@@ -85,9 +85,9 @@ module: ## Add a module in its six projects with an example query and test: make
 	dotnet new house-module --name $(NAME) --output backend --debug:custom-hive $(TEMPLATE_HIVE)
 	dotnet sln $(BACKEND) add $$(find backend/src/Modules/$(NAME) backend/tests/Modules.$(NAME).UnitTests -name '*.csproj' | sort)
 	dotnet add backend/src/Api/Api/Api.csproj reference backend/src/Modules/$(NAME)/Modules.$(NAME).Infrastructure/Modules.$(NAME).Infrastructure.csproj
-	awk -v name=$(NAME) 'NR == 1 { print "using Modules." name ".Infrastructure;" } \
+	awk -v name=$(NAME) 'NR == 1 { print "using Modules." name ".Infrastructure;"; print "using Modules." name ".Presentation;" } \
 		/\/\/ make module: registrations/ { print "builder.Services.Add" name "Module(builder.Configuration);" } \
-		/\/\/ make module: endpoints/ { print "    Modules." name ".Presentation.AssemblyReference.Assembly," } { print }' \
+		/\/\/ make module: endpoints/ { print "app.Map" name "Endpoints();" } { print }' \
 		$(PROGRAM) > $(PROGRAM).new && mv $(PROGRAM).new $(PROGRAM)
 	dotnet restore $(BACKEND) --force-evaluate
 	dotnet format $(BACKEND) --include $(PROGRAM) --no-restore

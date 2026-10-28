@@ -1,4 +1,3 @@
-using Carter;
 using Common.Presentation;
 using ErrorOr;
 using Immediate.Handlers.Shared;
@@ -10,9 +9,9 @@ using Modules.Sample.Application.Status;
 namespace Modules.Sample.Presentation;
 
 /// <summary>GET /v1/sample-route/status.</summary>
-public sealed class StatusEndpoint : ICarterModule
+internal static class StatusEndpoint
 {
-    public void AddRoutes(IEndpointRouteBuilder app)
+    internal static void MapStatus(this IEndpointRouteBuilder app)
     {
         app.MapGet("v1/sample-route/status", async (
                 IHandler<GetSampleStatusQuery, ErrorOr<SampleStatus>> handler,
