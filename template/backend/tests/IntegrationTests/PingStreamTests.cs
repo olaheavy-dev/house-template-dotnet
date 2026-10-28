@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 
 namespace IntegrationTests;
@@ -48,6 +49,19 @@ public sealed class PingStreamTests
         Assert.That((await stream.NextEvent())["id"], Is.EqualTo("2"));
     }
 
+    [Test]
+    public async Task The_stream_ends_when_the_host_starts_to_stop_so_a_deploy_does_not_wait_for_it()
+    {
+        await using var api = new TestApi(services => services.AddSingleton<TimeProvider>(new FakeTimeProvider()));
+        using var stream = await Open(api, lastEventId: null);
+        await stream.NextEvent();
+
+        // What SIGTERM does. The client's EventSource reconnects with Last-Event-ID, to another replica.
+        api.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
+
+        Assert.That(await stream.EndsWithin(TimeSpan.FromSeconds(5)), Is.True, "the stream should end by itself rather than hold the shutdown");
+    }
+
     private static async Task<EventStream> Open(TestApi api, string? lastEventId)
     {
         var client = api.CreateClient();
@@ -88,6 +102,24 @@ public sealed class PingStreamTests
             }
 
             throw new EndOfStreamException("The stream ended.");
+        }
+
+        /// <summary>True when the server closes the stream within <paramref name="time"/>.</summary>
+        public async Task<bool> EndsWithin(TimeSpan time)
+        {
+            using var timeout = new CancellationTokenSource(time);
+            try
+            {
+                while (await _reader.ReadLineAsync(timeout.Token) is not null)
+                {
+                }
+
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
         }
 
         public void Dispose()

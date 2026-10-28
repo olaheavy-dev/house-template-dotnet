@@ -1,0 +1,38 @@
+# Owned by house-template-dotnet. Builds the API image and runs the backend in Compose (Postgres,
+# Keycloak, the migrate step, the API), then asks it what matters once it is an image: its commit,
+# who may call it, whether a retried write runs once, whether it stops in time (tools/smoke-compose.sh).
+name: Image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - backend/**
+      - global.json
+      - compose.yaml
+      - .dockerignore
+      - tools/smoke-compose.sh
+      - .github/workflows/image.yml
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  smoke:
+    name: Image builds and the stack works
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the image, start the backend and check it
+        run: make smoke

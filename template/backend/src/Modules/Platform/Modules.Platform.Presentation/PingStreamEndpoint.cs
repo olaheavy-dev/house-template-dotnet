@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Hosting;
 using Modules.Platform.Application.Ping;
 
 namespace Modules.Platform.Presentation;
@@ -26,10 +27,11 @@ internal static class PingStreamEndpoint
         app.MapGet("v1/platform/pings", (
                 IHandler<GetPingQuery, ErrorOr<PingResponse>> handler,
                 TimeProvider clock,
+                IHostApplicationLifetime lifetime,
                 [FromHeader(Name = "Last-Event-ID")] string? lastEventId,
                 CancellationToken cancellationToken) =>
                 TypedResults.ServerSentEvents(Pings(
-                    token => handler.HandleAsync(new GetPingQuery(), token), clock, FirstId(lastEventId), cancellationToken)))
+                    token => handler.HandleAsync(new GetPingQuery(), token), clock, FirstId(lastEventId), cancellationToken, lifetime.ApplicationStopping)))
             .WithName("StreamPings")
             .WithTags("Platform")
             .DisableRequestTimeout();
@@ -44,12 +46,19 @@ internal static class PingStreamEndpoint
         Func<CancellationToken, ValueTask<ErrorOr<PingResponse>>> ping,
         TimeProvider clock,
         long id,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        CancellationToken requestAborted,
+        CancellationToken hostStopping,
+        [EnumeratorCancellation] CancellationToken enumerationCancelled = default)
     {
+        // The stream ends when the client goes away or when the host starts to stop. Without the second, every
+        // connected stream holds a deploy up for the whole shutdown timeout; the client's EventSource reconnects
+        // (with Last-Event-ID) to another replica.
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(requestAborted, hostStopping, enumerationCancelled);
         using var timer = new PeriodicTimer(Interval, clock);
-        do
+        var next = true;
+        while (next)
         {
-            var result = await ping(cancellationToken);
+            var result = await ping(stop.Token);
             if (result.IsError)
             {
                 yield break;
@@ -57,7 +66,14 @@ internal static class PingStreamEndpoint
 
             yield return new SseItem<PingResponse>(result.Value, "ping") { EventId = id.ToString(CultureInfo.InvariantCulture) };
             id++;
+            try
+            {
+                next = await timer.WaitForNextTickAsync(stop.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                next = false;
+            }
         }
-        while (await timer.WaitForNextTickAsync(cancellationToken));
     }
 }

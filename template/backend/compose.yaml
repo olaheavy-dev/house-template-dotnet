@@ -1,0 +1,144 @@
+# Owned by house-template-dotnet. Included by the root compose.yaml (house-template-base), so
+# `docker compose up` runs the whole backend from its image as production would: Postgres, Keycloak
+# (the realm imported from backend/keycloak), the migrate step once, then the API, and the Aspire
+# dashboard for traces and logs. Every port is on loopback. Local credentials only; production gets
+# its settings from its environment. Images are pinned by digest (Dependabot updates them).
+#
+# For day-to-day coding run only what the API needs and the API on the host:
+#   docker compose up --wait db keycloak dashboard   then   make migrate && make dev-backend
+#
+# Keycloak imports backend/keycloak/realm.json only when the realm does not exist yet. After changing
+# the file, throw the old realm away so it is imported again:
+#   docker compose rm -sfv keycloak && docker compose up -d keycloak
+
+services:
+  db:
+    # PostgreSQL 17, the version the tests run against.
+    image: postgres:17.11@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      # Set DB_PORT (and the port in ConnectionStrings__Default) to run two projects' databases side by side.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # Over TCP, not the socket: on first start the image runs a temporary socket-only server
+      # while it initialises, and a socket check would pass before the real server is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+      start_interval: 1s
+    shm_size: 256mb
+
+  keycloak:
+    # Keycloak 26.8.1, the image the integration tests use.
+    image: quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      # Tokens name this address as their issuer (the API's Auth__Issuer); the API itself reaches
+      # Keycloak as keycloak:8080, so the back channel follows the address it is called on.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8080}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+    healthcheck:
+      # The image has no curl: speak HTTP to the management port (9000) with bash.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status": "UP"' <&3
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+      start_interval: 2s
+
+  dashboard:
+    # Aspire dashboard: traces, logs and metrics from the API at http://localhost:18888 (no sign-in locally).
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.2@sha256:4f494c0b519ba58e56f8bb6830041f8ab071e6842c1f4dd1b474d4793dbe1593
+    environment:
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-18888}:18888"
+      # OTLP over gRPC, for an API running on the host (OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317).
+      - "127.0.0.1:${OTLP_PORT:-4317}:18889"
+
+  valkey:
+    # The optional shared cache. `docker compose --profile cache up`, then CACHE_CONNECTION=valkey:6379 for the API.
+    profiles: ["cache"]
+    image: valkey/valkey:9.0.7@sha256:7e1deda01b64ece3167d370ab5be3452d29734feec22cbcbc69b3a64f6859d6d
+    ports:
+      - "127.0.0.1:${CACHE_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Brings the database up to date once, then exits; the API starts only if it succeeded. Production
+  # runs the same image with the same command as a one-off job before each rollout.
+  migrate:
+    # Both services build the same Dockerfile (the second build is cached). The context is the project
+    # root, which holds global.json.
+    build: &image
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-local}
+    command: ["migrate"]
+    environment: &api-environment
+      # Service names, not localhost: these run inside Compose's network.
+      ConnectionStrings__Default: Host=db;Database=app;Username=app;Password=app
+      ConnectionStrings__Cache: ${CACHE_CONNECTION:-}
+      Auth__Issuer: http://localhost:${KEYCLOAK_PORT:-8080}/realms/app
+      Auth__MetadataAddress: http://keycloak:8080/realms/app/.well-known/openid-configuration
+      Auth__RequireHttpsMetadata: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://dashboard:18889
+    env_file:
+      # Settings from backend/.env, when there is one; the values above win.
+      - path: .env
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: *image
+    environment: *api-environment
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      # Set API_PORT to run two projects side by side.
+      - "127.0.0.1:${API_PORT:-8000}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    # The host gives requests in flight 30 seconds to finish after SIGTERM: stop waits a little longer.
+    stop_grace_period: 35s
+    develop:
+      # `docker compose watch`: rebuild the image when the code changes. `make dev-backend` (dotnet watch
+      # on the host) reloads faster while writing code.
+      watch:
+        - action: rebuild
+          path: src
+
+volumes:
+  db-data:

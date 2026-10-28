@@ -37,7 +37,12 @@ INSTALLS += install-dotnet
 CHECKS += check-dotnet
 FAST_CHECKS += check-fast-dotnet
 
-.PHONY: codegen migrate migrate-bundle seed install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
+# The commit baked into the image: /health/live reports it. Passed to Compose only: exported, it would reach
+# the tests and the API they start, which read GIT_COMMIT from the environment too.
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
+
+# `make smoke` is the one place this layer's .PHONY line would grow: keep the targets together.
+.PHONY: smoke db-up image up down codegen migrate migrate-bundle seed install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
 
 install-dotnet: ## Restore the backend's tools and packages from their lock files (needs the SDK in global.json)
 	dotnet tool restore
@@ -70,10 +75,25 @@ openapi-backend: ## Write backend/openapi/v1.json from the code (any build does;
 test-backend: ## Run the backend's tests
 	dotnet test --solution $(BACKEND) --configuration Release
 
-dev-backend: ## Run the API with reload on http://localhost:5000, in Development, with backend/.env's settings
+db-up: ## Start what the API needs on the host: PostgreSQL, Keycloak (realm imported) and the Aspire dashboard (backend/compose.yaml); copy backend/.env.example to backend/.env, then make migrate && make dev-backend
+	docker compose up -d --wait db keycloak dashboard
+
+image: ## Build the API image from backend/Dockerfile (GIT_COMMIT is baked in and shown by /health/live)
+	GIT_COMMIT=$(GIT_COMMIT) docker compose build api
+
+up: ## Run the whole backend from its image: database, Keycloak, migrations once, then the API on http://127.0.0.1:8000 (traces at http://localhost:18888)
+	GIT_COMMIT=$(GIT_COMMIT) docker compose up -d --build --wait api
+
+smoke: ## Build the image, run the backend in Compose and check it end to end (needs Docker; leaves nothing behind)
+	bash tools/smoke-compose.sh
+
+down: ## Stop what make up and make db-up started (the database volume stays; add -v to docker compose down to drop it)
+	docker compose down
+
+dev-backend: ## Run the API with reload on http://localhost:8000, in Development, with backend/.env's settings
 	@export ASPNETCORE_ENVIRONMENT=Development; \
 	if [ -f backend/.env ]; then set -a; . ./backend/.env; set +a; fi; \
-	dotnet watch --project backend/src/Api/Api run --urls http://localhost:5000
+	dotnet watch --project backend/src/Api/Api run --urls http://localhost:8000
 
 lock-backend: ## Update the lock files after changing backend/Directory.Packages.props or a project's packages
 	dotnet restore $(BACKEND) --force-evaluate

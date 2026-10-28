@@ -31,6 +31,9 @@ Owned by house-template-dotnet. The versions this backend pins, with the officia
 | Valkey (the optional shared cache; any Redis-compatible server works) | 9.0.7 | https://valkey.io/ |
 | Feature management (flags, filters, targeting, variants, telemetry) | Microsoft.FeatureManagement.AspNetCore 4.8.0 | https://learn.microsoft.com/azure/azure-app-configuration/feature-management-dotnet-reference |
 | Feature flag schema (`feature_management`) | 2.0 | https://github.com/Azure/AppConfiguration/blob/main/docs/FeatureManagement/FeatureFlag.v2.0.0.schema.json |
+| ASP.NET Core container images (chiseled) | mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled | https://learn.microsoft.com/dotnet/core/docker/container-images#chiseled-images |
+| Docker Compose (include, healthchecks, profiles, watch) | Compose 2.20.3 or later | https://docs.docker.com/compose/ |
+| Aspire dashboard (standalone) | 13.6.2 | https://aspire.dev/dashboard/standalone/ |
 | Testcontainers for .NET (Keycloak, PostgreSQL) | 4.16.0 | https://dotnet.testcontainers.org/modules/ |
 | EF Core (Npgsql provider, migrations, `dotnet ef`) | Npgsql.EntityFrameworkCore.PostgreSQL 10.0.3, Microsoft.EntityFrameworkCore.Design and dotnet-ef 10.0.14 | https://learn.microsoft.com/ef/core/ |
 | Npgsql concurrency tokens (`xmin`) | 10.0 | https://www.npgsql.org/efcore/modeling/concurrency.html |
