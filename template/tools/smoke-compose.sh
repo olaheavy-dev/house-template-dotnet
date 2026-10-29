@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Owned by house-template-dotnet. `make smoke`: builds the API image, starts the backend in Compose
-# (Postgres, Keycloak, the migrate step, the API) and asks it the questions that matter once it is
+# (Postgres, Keycloak, the migrate step, the API, then the worker role) and asks it the questions that matter once it is
 # an image and not a project: is it up, which commit is it, who may call it, does a write survive a
 # retry, does it stop in time. Leaves nothing behind unless SMOKE_KEEP=1.
 set -euo pipefail
@@ -63,5 +63,17 @@ elapsed=$(( $(date +%s) - started ))
 check "it stops well inside the grace period (${elapsed}s)" yes "$([ "$elapsed" -lt 20 ] && echo yes || echo no)"
 check "it stopped cleanly" 0 "$(docker inspect --format '{{.State.ExitCode}}' "$(compose ps -a -q api)")"
 
-if [ "$failures" -gt 0 ]; then echo "$failures check(s) failed."; compose logs api | tail -30; exit 1; fi
+# The worker is the same image with --role=worker: no port, so its HEALTHCHECK (Api.dll healthcheck, which
+# asks /health/live inside the container) is what says it is up.
+echo "Worker role:"
+compose up -d --wait worker
+check "the worker is healthy" healthy "$(docker inspect --format '{{.State.Health.Status}}' "$(compose ps -q worker)")"
+check "the worker publishes no port" "" "$(docker inspect --format '{{range $p, $b := .NetworkSettings.Ports}}{{if $b}}{{$p}}{{end}}{{end}}' "$(compose ps -q worker)")"
+started=$(date +%s)
+compose stop worker >/dev/null
+elapsed=$(( $(date +%s) - started ))
+check "the worker stops well inside the grace period (${elapsed}s)" yes "$([ "$elapsed" -lt 20 ] && echo yes || echo no)"
+check "the worker stopped cleanly" 0 "$(docker inspect --format '{{.State.ExitCode}}' "$(compose ps -a -q worker)")"
+
+if [ "$failures" -gt 0 ]; then echo "$failures check(s) failed."; compose logs api worker | tail -40; exit 1; fi
 echo "All checks passed."
