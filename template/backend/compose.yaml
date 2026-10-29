@@ -147,5 +147,25 @@ services:
         - action: rebuild
           path: src
 
+  # The same image run as a worker: no API surface, only /health/*. It recovers and processes what the outbox and
+  # the durable queues hold, apart from the API (scale the two separately). Off by default:
+  # `docker compose --profile worker up worker`.
+  worker:
+    profiles: ["worker"]
+    build: *image
+    command: ["--role=worker"]
+    environment: *api-environment
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      dashboard:
+        condition: service_started
+    stop_grace_period: 35s
+
 volumes:
   db-data:

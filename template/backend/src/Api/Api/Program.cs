@@ -21,16 +21,24 @@ if (args is ["healthcheck"])
 
 var builder = WebApplication.CreateBuilder(args);
 
+// `--role=worker` (or ROLE=worker) runs this image as a worker: the same modules, messaging and telemetry,
+// but no API surface (no auth, OpenAPI, hardening or module endpoints), only /health/* for the orchestrator.
+var isWorker = AppRole.IsWorker(builder.Configuration);
+
 builder.AddServiceDefaults();
 builder.AddMessaging(typeof(Program).Assembly);
 builder.Services.AddCommon();
-builder.Services.AddIdempotency(builder.Configuration);
 builder.Services.AddCaching(builder.Configuration);
 builder.Services.AddFeatureFlags(builder.Configuration);
-builder.Services.AddApiProblemDetails();
-builder.Services.AddApiOpenApi(builder.Configuration);
-builder.Services.AddHardening(builder.Configuration);
-builder.Services.AddAuth(builder.Configuration, builder.Environment);
+if (!isWorker)
+{
+    builder.Services.AddIdempotency(builder.Configuration);
+    builder.Services.AddApiProblemDetails();
+    builder.Services.AddApiOpenApi(builder.Configuration);
+    builder.Services.AddHardening(builder.Configuration);
+    builder.Services.AddAuth(builder.Configuration, builder.Environment);
+}
+
 // Each module registers itself. `make module NAME=<Name>` adds new ones above the marker.
 builder.Services.AddPlatformModule(builder.Configuration);
 // make module: registrations
@@ -58,6 +66,16 @@ if (args is ["seed"])
 }
 
 app.UseServiceDefaults();
+
+if (isWorker)
+{
+    // Messaging runs as hosted services of this host: it recovers and processes the messages the outbox and
+    // the durable queues hold. Only the health endpoints answer, so the image's HEALTHCHECK works unchanged.
+    app.MapHealthEndpoints();
+    await app.RunAsync();
+    return 0;
+}
+
 app.UseSecurityHeaders();
 // An unhandled exception, and a status code with no body, become problem details.
 app.UseExceptionHandler();

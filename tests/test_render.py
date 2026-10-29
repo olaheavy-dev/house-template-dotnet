@@ -318,7 +318,7 @@ def test_compose_runs_the_backend_as_production_would_on_loopback_with_everythin
     project = render()
     compose = yaml.safe_load((project / "backend/compose.yaml").read_text())
     services = compose["services"]
-    assert set(services) == {"db", "keycloak", "dashboard", "valkey", "migrate", "api"}
+    assert set(services) == {"db", "keycloak", "dashboard", "valkey", "migrate", "api", "worker"}
     for name in ("db", "keycloak", "dashboard", "valkey"):
         assert "@sha256:" in services[name]["image"], name
     for name, service in services.items():
@@ -331,6 +331,13 @@ def test_compose_runs_the_backend_as_production_would_on_loopback_with_everythin
     assert services["migrate"]["command"] == ["migrate"]
     assert services["migrate"]["restart"] == "no"
     assert services["valkey"]["profiles"] == ["cache"]
+    # The worker is the same image with another role, off unless asked for, and migrated first like the API.
+    worker = services["worker"]
+    assert worker["profiles"] == ["worker"] and worker["command"] == ["--role=worker"]
+    assert worker["build"] == api["build"] and worker["environment"] == api["environment"]
+    assert "ports" not in worker
+    assert worker["depends_on"]["migrate"]["condition"] == "service_completed_successfully"
+    assert int(worker["stop_grace_period"].rstrip("s")) >= 30
     build = services["api"]["build"]
     assert build["dockerfile"] == "backend/Dockerfile" and build["context"] == ".."
     environment = services["api"]["environment"]
@@ -395,6 +402,19 @@ def test_a_workflow_runs_the_smoke_test_and_the_image_files_are_template_owned(r
     for path in ("backend/Dockerfile", "backend/compose.yaml", ".dockerignore", "tools/smoke-compose.sh",
                  ".github/workflows/image.yml", ".claude/skills/add-endpoint/SKILL.md"):
         assert path in owned, path
+
+
+def test_the_worker_role_leaves_out_the_api_surface_and_refuses_an_unknown_role(render):
+    project = render()
+    program = (project / "backend/src/Api/Api/Program.cs").read_text()
+    worker_branch = program.split("if (isWorker)", 1)[1].split("app.UseSecurityHeaders()")[0]
+    assert "app.MapHealthEndpoints();" in worker_branch and "MapPlatformEndpoints" not in worker_branch
+    # Everything that exists only for HTTP callers is registered for the API role alone.
+    guarded = program.split("if (!isWorker)", 1)[1].split("}", 1)[0]
+    for call in ("AddIdempotency", "AddApiProblemDetails", "AddApiOpenApi", "AddHardening", "AddAuth"):
+        assert call in guarded, call
+    role = (project / "backend/src/Api/Api/AppRole.cs").read_text()
+    assert "Unknown role" in role
 
 
 @pytest.mark.parametrize("images", [True, False])
