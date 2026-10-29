@@ -130,8 +130,7 @@ public sealed class CacheTests
         var id = await CreateNote(client);
         using var warm = await client.GetAsync(new Uri($"/v1/platform/notes/{id}", UriKind.Relative));
 
-        var keys = (await Valkey(valkey, "--scan")).Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var key = keys.Single(candidate => candidate.Contains(id.ToString(), StringComparison.Ordinal));
+        var key = (await WaitForKeys(valkey, id.ToString())).Single();
         var ttl = int.Parse((await Valkey(valkey, "TTL", key)).Trim(), System.Globalization.CultureInfo.InvariantCulture);
 
         Assert.That(key, Does.StartWith("probe:"));
@@ -187,6 +186,9 @@ public sealed class CacheTests
         var id = await CreateNote(one);
         var uri = new Uri($"/v1/platform/notes/{id}", UriKind.Relative);
         using var warmFirst = await one.GetAsync(uri);
+        // HybridCache answers before its write to the shared level finishes: wait for it, so the second instance
+        // reads the shared entry (and writes nothing) and no write is still in flight when the entry is removed.
+        await WaitForKeys(valkey, id.ToString());
         using var warmSecond = await two.GetAsync(uri);
         await DeleteRow(id);
 
@@ -254,6 +256,23 @@ public sealed class CacheTests
     {
         var result = await valkey.ExecAsync(["valkey-cli", .. arguments]);
         return result.Stdout;
+    }
+
+    /// <summary>The shared keys containing <paramref name="fragment"/>, once there is at least one (HybridCache writes the shared level after it has answered).</summary>
+    private static async Task<string[]> WaitForKeys(IContainer valkey, string fragment)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            var keys = (await Valkey(valkey, "--scan")).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Where(key => key.Contains(fragment, StringComparison.Ordinal)).ToArray();
+            if (keys.Length > 0 || DateTime.UtcNow > deadline)
+            {
+                return keys;
+            }
+
+            await Task.Delay(50);
+        }
     }
 
     private static async Task<IContainer> StartValkey()

@@ -6,6 +6,9 @@ using Microsoft.Extensions.Logging;
 using Modules.Platform.Application.Notes;
 using Modules.Platform.Domain;
 using Modules.Platform.IntegrationEvents;
+using Wolverine;
+using Wolverine.Runtime;
+using Wolverine.Runtime.Routing;
 
 namespace IntegrationTests;
 
@@ -47,6 +50,31 @@ public sealed class MessagingTests
         Assert.That(await Delivered(api, noteId, TimeSpan.FromSeconds(3)), Is.False, "an event for a note that was never stored was delivered");
     }
 
+    [Test]
+    public async Task The_same_event_delivered_twice_is_handled_once()
+    {
+        await using var api = new TestApi(services => services.AddLogging(logging => logging.AddFakeLogging()));
+        var runtime = api.Services.GetRequiredService<IWolverineRuntime>();
+        var noteId = Guid.CreateVersion7();
+        var message = new NoteCreated(noteId, "alice", DateTimeOffset.UnixEpoch);
+
+        var router = runtime.RoutingFor(typeof(NoteCreated));
+        var sender = router.Routes.OfType<MessageRoute>().Single().Sender;
+        var first = router.RouteForPublish(message, new DeliveryOptions()).Single();
+        await sender.StoreAndForwardAsync(first);
+        Assert.That(await Delivered(api, noteId), Is.True, "the subscriber never saw the event");
+
+        // The same envelope id again, as a retry or a redelivery after a lost acknowledgement would send it. Storing it
+        // is what the inbox answers: it refuses a message id it already holds (Wolverine retries the store a few times
+        // and logs warnings before it decides the envelope is a duplicate).
+        var again = router.RouteForPublish(message, new DeliveryOptions()).Single();
+        again.Id = first.Id;
+        await sender.StoreAndForwardAsync(again);
+        await Task.Delay(TimeSpan.FromSeconds(3));
+
+        Assert.That(Handled(api, noteId), Is.EqualTo(1), "the inbox should drop an envelope it has already handled");
+    }
+
     private static async Task<bool> Delivered(TestApi api, Guid noteId, TimeSpan? within = null)
     {
         var collector = api.Services.GetFakeLogCollector();
@@ -63,6 +91,10 @@ public sealed class MessagingTests
 
         return false;
     }
+
+    private static int Handled(TestApi api, Guid noteId) =>
+        api.Services.GetFakeLogCollector().GetSnapshot().Count(record =>
+            record.Level == LogLevel.Information && record.Message.Contains($"A note was created: {noteId}", StringComparison.Ordinal));
 
     private sealed record NoteBody(Guid Id);
 }
