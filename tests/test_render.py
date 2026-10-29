@@ -624,6 +624,8 @@ def test_every_licence_override_matches_the_pinned_version():
 
 
 def test_the_tools_are_pinned_without_roll_forward():
+    # `dotnet tool install` rewrites the manifest without a final newline, which base's end-of-file hook rejects.
+    assert (TEMPLATE / ".config/dotnet-tools.json").read_text().endswith("}\n")
     tools = json.loads((TEMPLATE / ".config/dotnet-tools.json").read_text())["tools"]
     assert set(tools) == {"jetbrains.resharper.globaltools", "nuget-license", "dotnet-ef", "dotnet-stryker"}
     assert all(tool["rollForward"] is False and re.fullmatch(r"[\d.]+", tool["version"]) for tool in tools.values())
