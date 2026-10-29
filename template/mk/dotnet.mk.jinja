@@ -42,7 +42,7 @@ FAST_CHECKS += check-fast-dotnet
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 
 # `make smoke` is the one place this layer's .PHONY line would grow: keep the targets together.
-.PHONY: smoke db-up image up down codegen migrate migrate-bundle seed install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health
+.PHONY: smoke db-up image up down codegen migrate migrate-bundle seed install-dotnet check-dotnet check-fast-dotnet build-backend openapi-backend test-backend dev-backend lock-backend module licenses-backend inspect-backend doctor-backend package-health mutation
 
 install-dotnet: ## Restore the backend's tools and packages from their lock files (needs the SDK in global.json)
 	dotnet tool restore
@@ -172,6 +172,19 @@ doctor-backend: ## Check this machine has what the backend needs: the SDK global
 	@command -v docker >/dev/null && docker info >/dev/null 2>&1 && echo "Docker: running" \
 		|| echo "Docker: not running (the integration tests and make up need it)"
 	@dotnet tool restore >/dev/null && echo "Tools: restored (.config/dotnet-tools.json)"
+
+# Each unit test project with a project it is the tests of: Stryker finds the code to mutate among a test
+# project's direct references, so a new module's unit tests (and their references) are added here.
+MUTATION_TARGETS := Common.UnitTests:Common.Application \
+	Modules.Platform.UnitTests:Modules.Platform.Domain Modules.Platform.UnitTests:Modules.Platform.Application
+
+mutation: install-dotnet ## Mutation-test the unit-tested code (Stryker.NET, the unit tests only: minutes); reports in backend/StrykerOutput
+	@failed=0; for target in $(MUTATION_TARGETS); do \
+		tests=$${target%%:*}; project=$${target##*:}; \
+		echo "Mutating $$project with $$tests"; \
+		(cd backend/tests/$$tests && dotnet dotnet-stryker --config-file ../../stryker-config.json \
+			--project $$project.csproj --output $(abspath backend/StrykerOutput)/$$project) || failed=1; \
+	done; exit $$failed
 
 package-health: ## Flag pinned packages with no release on nuget.org for a year (needs network)
 	python3 tools/check_package_health.py

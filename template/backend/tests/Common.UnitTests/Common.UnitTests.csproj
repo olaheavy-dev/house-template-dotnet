@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\src\Common\Common.Presentation\Common.Presentation.csproj" />
     <PackageReference Include="Immediate.Handlers" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
+    <ProjectReference Include="..\..\src\Common\Common.Application\Common.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="NUnit.Framework" />
