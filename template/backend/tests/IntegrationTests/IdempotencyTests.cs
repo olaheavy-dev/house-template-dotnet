@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Common.Application.Idempotency;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
@@ -107,6 +108,30 @@ public sealed class IdempotencyTests
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(await CodeOf(response), Is.EqualTo("idempotency.key_invalid"));
+    }
+
+    // HttpClient drops a header with no value before it reaches the server, so these go through TestServer's
+    // context hook, which is what Kestrel hands the middleware for `Idempotency-Key:` and for a repeated header.
+    [TestCase("")]
+    [TestCase("first", "second")]
+    public async Task A_key_that_is_empty_or_sent_twice_is_refused_and_nothing_runs(params string[] values)
+    {
+        await using var api = new TestApi(TestEndpoints.AddTo);
+        _ = api.CreateClient();
+
+        var context = await api.Server.SendAsync(http =>
+        {
+            http.Request.Method = HttpMethods.Post;
+            http.Request.Path = "/test/idem-required";
+            http.Request.ContentType = "application/json";
+            http.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+            http.Request.Headers["Idempotency-Key"] = new Microsoft.Extensions.Primitives.StringValues(values);
+        });
+        using var problem = await JsonDocument.ParseAsync(context.Response.Body);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
+        Assert.That(problem.RootElement.GetProperty("code").GetString(), Is.EqualTo("idempotency.key_invalid"));
+        Assert.That(IdempotencyProbe.Runs, Is.Zero);
     }
 
     [Test]

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Common.Infrastructure.Caching;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -130,8 +131,7 @@ public sealed class CacheTests
         var id = await CreateNote(client);
         using var warm = await client.GetAsync(new Uri($"/v1/platform/notes/{id}", UriKind.Relative));
 
-        var keys = (await Valkey(valkey, "--scan")).Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var key = keys.Single(candidate => candidate.Contains(id.ToString(), StringComparison.Ordinal));
+        var key = (await WaitForKeys(valkey, id.ToString())).Single();
         var ttl = int.Parse((await Valkey(valkey, "TTL", key)).Trim(), System.Globalization.CultureInfo.InvariantCulture);
 
         Assert.That(key, Does.StartWith("probe:"));
@@ -187,6 +187,9 @@ public sealed class CacheTests
         var id = await CreateNote(one);
         var uri = new Uri($"/v1/platform/notes/{id}", UriKind.Relative);
         using var warmFirst = await one.GetAsync(uri);
+        // HybridCache answers before its write to the shared level finishes: wait for it, so the second instance
+        // reads the shared entry (and writes nothing) and no write is still in flight when the entry is removed.
+        await WaitForKeys(valkey, id.ToString());
         using var warmSecond = await two.GetAsync(uri);
         await DeleteRow(id);
 
@@ -199,6 +202,51 @@ public sealed class CacheTests
         Assert.That(onTheFirst.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "the instance that removed it should now go to the database");
         await TestContext.Out.WriteLineAsync($"second instance after the first removed the entry: {(int)onTheSecond.StatusCode}");
         Assert.That(onTheSecond.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the other instance still holds its own copy until it expires");
+    }
+
+    [Test]
+    public async Task A_miss_is_not_left_in_the_shared_cache_when_its_write_is_slow()
+    {
+        await using var valkey = await StartValkey();
+        await using var api = new TestApi(services => DelayWritesToTheSharedCache(services, TimeSpan.FromMilliseconds(500)), settings: SharedCache(valkey));
+        using var client = SignedIn(api, "cache-miss");
+        var id = Guid.CreateVersion7();
+
+        using var response = await client.GetAsync(new Uri($"/v1/platform/notes/{id}", UriKind.Relative));
+        await Task.Delay(2000);
+        var left = (await Valkey(valkey, "--scan")).Split('\n', StringSplitOptions.RemoveEmptyEntries).Where(key => key.Contains(id.ToString(), StringComparison.Ordinal)).ToArray();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(left, Is.Empty, "a miss must not be remembered, even when the shared cache is slow to take the write");
+    }
+
+    private static void DelayWritesToTheSharedCache(IServiceCollection services, TimeSpan delay)
+    {
+        var original = services.Last(descriptor => descriptor.ServiceType == typeof(IDistributedCache));
+        services.Remove(original);
+        services.AddSingleton<IDistributedCache>(provider =>
+        {
+            var inner = original.ImplementationFactory?.Invoke(provider)
+                ?? ActivatorUtilities.CreateInstance(provider, original.ImplementationType!);
+            return new SlowWrites((IDistributedCache)inner, delay);
+        });
+    }
+
+    private sealed class SlowWrites(IDistributedCache inner, TimeSpan delay) : IDistributedCache
+    {
+        public byte[]? Get(string key) => inner.Get(key);
+        public Task<byte[]?> GetAsync(string key, CancellationToken token = default) => inner.GetAsync(key, token);
+        public void Refresh(string key) => inner.Refresh(key);
+        public Task RefreshAsync(string key, CancellationToken token = default) => inner.RefreshAsync(key, token);
+        public void Remove(string key) => inner.Remove(key);
+        public Task RemoveAsync(string key, CancellationToken token = default) => inner.RemoveAsync(key, token);
+        public void Set(string key, byte[] value, DistributedCacheEntryOptions options) => inner.Set(key, value, options);
+
+        public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
+        {
+            await Task.Delay(delay, CancellationToken.None);
+            await inner.SetAsync(key, value, options, token);
+        }
     }
 
     [Test]
@@ -254,6 +302,23 @@ public sealed class CacheTests
     {
         var result = await valkey.ExecAsync(["valkey-cli", .. arguments]);
         return result.Stdout;
+    }
+
+    /// <summary>The shared keys containing <paramref name="fragment"/>, once there is at least one (HybridCache writes the shared level after it has answered).</summary>
+    private static async Task<string[]> WaitForKeys(IContainer valkey, string fragment)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            var keys = (await Valkey(valkey, "--scan")).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Where(key => key.Contains(fragment, StringComparison.Ordinal)).ToArray();
+            if (keys.Length > 0 || DateTime.UtcNow > deadline)
+            {
+                return keys;
+            }
+
+            await Task.Delay(50);
+        }
     }
 
     private static async Task<IContainer> StartValkey()
