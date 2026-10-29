@@ -197,11 +197,8 @@ public sealed class CacheTests
 
         using var onTheSecond = await two.GetAsync(uri);
         using var onTheFirst = await one.GetAsync(uri);
-        var left = (await Valkey(valkey, "--scan")).Split('\n', StringSplitOptions.RemoveEmptyEntries).Where(key => key.Contains(id.ToString(), StringComparison.Ordinal)).ToArray();
-        // This has failed on CI and never locally. If it fails again, the message names what was left: a miss
-        // written after the removal (HybridCache writes the shared level after it has answered) or the warmed entry.
-        var detail = string.Join("; ", await Task.WhenAll(left.Select(async key => $"{key} ttl={(await Valkey(valkey, "TTL", key)).Trim()} bytes={(await Valkey(valkey, "STRLEN", key)).Trim()}")));
-        Assert.That(left, Is.Empty, $"the removal should have deleted the shared entry, and the miss that followed must not be stored; left: {detail}");
+        var keysLeft = (await Valkey(valkey, "--scan")).Split('\n', StringSplitOptions.RemoveEmptyEntries).Count(key => key.Contains(id.ToString(), StringComparison.Ordinal));
+        Assert.That(keysLeft, Is.Zero, "the removal should have deleted the shared entry, and the miss that followed must not be stored");
         Assert.That(onTheFirst.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "the instance that removed it should now go to the database");
         await TestContext.Out.WriteLineAsync($"second instance after the first removed the entry: {(int)onTheSecond.StatusCode}");
         Assert.That(onTheSecond.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the other instance still holds its own copy until it expires");
