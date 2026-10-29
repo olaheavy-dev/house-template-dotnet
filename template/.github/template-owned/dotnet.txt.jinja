@@ -7,7 +7,8 @@ tools/check_package_health.py
 .github/workflows/dependency-submission.yml
 .github/workflows/package-health.yml
 .github/workflows/image.yml
-tools/smoke-compose.sh
+{% if _external_data.base.container_images %}.github/workflows/publish-api.yml
+{% endif %}tools/smoke-compose.sh
 .dockerignore
 backend/Dockerfile
 backend/compose.yaml
