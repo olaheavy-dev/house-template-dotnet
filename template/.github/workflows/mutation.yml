@@ -1,0 +1,45 @@
+# Owned by house-template-dotnet. Mutation testing of the unit-tested code with Stryker.NET (make mutation):
+# Stryker changes the code a little at a time and the unit tests must notice. It runs weekly and on demand,
+# not on pull requests, because it takes minutes and reports a trend rather than a verdict. The job fails
+# when a project's mutation score falls below the break threshold in backend/stryker-config.json.
+name: Mutation testing
+
+on:
+  schedule:
+    - cron: "43 3 * * 2"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stryker:
+    name: Mutation score of the unit-tested code
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Run Stryker
+        run: make mutation
+
+      - name: Keep the reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-reports
+          path: backend/StrykerOutput/**/reports/
+          if-no-files-found: warn

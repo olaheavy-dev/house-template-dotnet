@@ -431,6 +431,31 @@ def test_the_publish_workflow_follows_the_base_answer_and_builds_from_the_projec
         assert jobs["api"]["with"] == {"image": "api", "context": ".", "file": "backend/Dockerfile"}
 
 
+def test_mutation_testing_runs_stryker_on_the_unit_tests_alone_and_weekly(render):
+    project = render()
+    tools = json.loads((project / ".config/dotnet-tools.json").read_text())["tools"]
+    assert tools["dotnet-stryker"]["rollForward"] is False
+    config = json.loads((project / "backend/stryker-config.json").read_text())["stryker-config"]
+    assert config["test-runner"] == "mtp" and 0 < config["thresholds"]["break"] < config["thresholds"]["low"]
+    mutation = make_dry_run(project, "mutation")
+    assert "dotnet dotnet-stryker --config-file ../../stryker-config.json" in mutation and "--project $project.csproj" in mutation
+    assert "Common.UnitTests:Common.Application" in mutation and "Modules.Platform.UnitTests:Modules.Platform.Domain" in mutation
+    # Stryker finds the code to mutate among a test project's direct references.
+    for tests, source in (("Common.UnitTests", "Common.Application"), ("Modules.Platform.UnitTests", "Modules.Platform.Domain"),
+                          ("Modules.Platform.UnitTests", "Modules.Platform.Application")):
+        csproj = (project / f"backend/tests/{tests}/{tests}.csproj").read_text()
+        assert f"{source}.csproj" in csproj, (tests, source)
+    workflow = yaml.safe_load((project / ".github/workflows/mutation.yml").read_text())
+    assert "schedule" in workflow[True] and "pull_request" not in workflow[True]
+    assert workflow["permissions"] == {} and workflow["jobs"]["stryker"]["permissions"] == {"contents": "read"}
+    steps = workflow["jobs"]["stryker"]["steps"]
+    assert any(step.get("run") == "make mutation" for step in steps)
+    assert all("@" in step["uses"] and len(step["uses"].split("@")[1].split(" ")[0]) == 40 for step in steps if "uses" in step)
+    owned = (project / ".github/template-owned/dotnet.txt").read_text().splitlines()
+    for path in (".github/workflows/mutation.yml", "backend/stryker-config.json"):
+        assert path in owned, path
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed
@@ -599,8 +624,10 @@ def test_every_licence_override_matches_the_pinned_version():
 
 
 def test_the_tools_are_pinned_without_roll_forward():
+    # `dotnet tool install` rewrites the manifest without a final newline, which base's end-of-file hook rejects.
+    assert (TEMPLATE / ".config/dotnet-tools.json").read_text().endswith("}\n")
     tools = json.loads((TEMPLATE / ".config/dotnet-tools.json").read_text())["tools"]
-    assert set(tools) == {"jetbrains.resharper.globaltools", "nuget-license", "dotnet-ef"}
+    assert set(tools) == {"jetbrains.resharper.globaltools", "nuget-license", "dotnet-ef", "dotnet-stryker"}
     assert all(tool["rollForward"] is False and re.fullmatch(r"[\d.]+", tool["version"]) for tool in tools.values())
 
 

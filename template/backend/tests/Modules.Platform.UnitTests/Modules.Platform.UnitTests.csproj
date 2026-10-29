@@ -12,6 +12,8 @@
     <PackageReference Include="NUnit3TestAdapter" />
     <PackageReference Include="coverlet.MTP" />
     <ProjectReference Include="..\..\src\Modules\Platform\Modules.Platform.Infrastructure\Modules.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Platform\Modules.Platform.Domain\Modules.Platform.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Platform\Modules.Platform.Application\Modules.Platform.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="NUnit.Framework" />
