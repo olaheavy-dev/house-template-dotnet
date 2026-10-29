@@ -397,6 +397,20 @@ def test_a_workflow_runs_the_smoke_test_and_the_image_files_are_template_owned(r
         assert path in owned, path
 
 
+@pytest.mark.parametrize("images", [True, False])
+def test_the_publish_workflow_follows_the_base_answer_and_builds_from_the_project_root(render, project, images):
+    dst = render(project(container_images=images))
+    workflow = dst / ".github" / "workflows" / "publish-api.yml"
+    owned = (dst / ".github/template-owned/dotnet.txt").read_text()
+    assert workflow.exists() is images
+    assert (".github/workflows/publish-api.yml" in owned) is images
+    if images:
+        jobs = yaml.safe_load(workflow.read_text())["jobs"]
+        assert jobs["api"]["uses"] == "./.github/workflows/publish-image.yml"
+        # The Dockerfile copies global.json, so the context is the root, not backend/.
+        assert jobs["api"]["with"] == {"image": "api", "context": ".", "file": "backend/Dockerfile"}
+
+
 def test_make_seed_runs_the_seeders_in_development(render):
     seed = make_dry_run(render(), "seed")
     assert "ASPNETCORE_ENVIRONMENT=Development" in seed
